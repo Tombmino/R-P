@@ -209,7 +209,7 @@ test('closing and reopening keeps scores, players, language, theme and turn', ()
 }));
 
 test('damaged saved data falls back to a new game instead of crashing', () => withApp(async app => {
-  await app.page.evaluate(() => localStorage.setItem('yahtzee_pwa_v0_4_state', '{not json'));
+  await app.page.evaluate(() => localStorage.setItem('sk.yahtzee.state', '{not json'));
   await app.reload();
   assert.equal(await app.playerCount(), 2);
   assert.equal(await app.total(), 0);

@@ -1,8 +1,8 @@
 {
-  "name": "Yahtzee Tracker",
-  "short_name": "Yahtzee",
-  "description": "Contador de puntos de Yahtzee multijugador y sin conexión",
-  "start_url": "./index.html",
+  "name": "Ronda y Punto",
+  "short_name": "R&P",
+  "description": "Marcador digital para juegos de dados y cartas · Digital scorekeeper for dice and card games",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",

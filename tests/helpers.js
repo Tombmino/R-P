@@ -48,7 +48,10 @@ async function freshApp({ lang = 'en', autoAdvance = false } = {}) {
     if (d.type() === 'prompt') return d.accept(answers.length ? answers.shift() : d.defaultValue());
     return d.accept();
   });
-  await page.goto(baseUrl);
+  // Load the Yahtzee screen directly (the shell routes `#/yahtzee` there).
+  // Wait for the module graph to mount before touching anything.
+  await page.goto(baseUrl + '#/yahtzee');
+  await page.waitForSelector('#btnLang');
   const app = makeApi(page, { dialogs, answers, errors, context });
   if (lang === 'en' && (await page.textContent('#btnLang')).startsWith('ES')) await page.click('#btnLang');
   if ((await page.isChecked('#chkAutoAdvance')) !== autoAdvance) await page.click('#chkAutoAdvance');
@@ -59,7 +62,7 @@ function makeApi(page, extra) {
   const api = {
     page, ...extra,
     async close() { await extra.context.close(); },
-    async reload() { await page.reload(); },
+    async reload() { await page.reload(); await page.waitForSelector('#btnLang'); },
     row(title) { return page.locator('.row-item', { has: page.locator('.row-title', { hasText: title }) }); },
     async cell(title) { return (await api.row(title).locator('.row-score').textContent()).trim(); },
     async open(title) { await api.row(title).click(); await page.waitForSelector('#scoreModal.open'); },
