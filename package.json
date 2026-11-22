@@ -1,0 +1,11 @@
+{
+  "name": "scorekeeper",
+  "private": true,
+  "description": "Dice game scorekeepers (working name: DiceScore)",
+  "scripts": {
+    "test": "node --test --test-concurrency=1 tests/*.test.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}
