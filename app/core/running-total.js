@@ -53,6 +53,7 @@ import { loadJSON, saveJSON } from './storage.js';
 import { showToast, escapeHtml } from './ui.js';
 import { mergeStrings, LANG_LABEL } from './i18n.js';
 import { rankPlayers, medalFor } from './standings.js';
+import { defaultColorFor, isValidColor, firstFreeColor, colorSwatchesHtml, applyPlayerColor } from './colors.js';
 
 const MAX_UNDO = 25;
 
@@ -73,10 +74,11 @@ export function mountRunningTotal(container, def) {
   // A side's turns are kept as a log, not just a total, so the sheet can
   // show what happened and undo can step back one turn at a time.
 
-  function createSide(name) {
+  function createSide(name, color) {
     return {
       id: 's_' + Math.random().toString(36).slice(2, 9),
       name,
+      color: color || defaultColorFor(0),
       turns: []   // [{ amount, kind: 'score' | <action id>, at }]
     };
   }
@@ -90,7 +92,7 @@ export function mountRunningTotal(container, def) {
     const prefix = dict[def.sideKind === 'team' ? 'defaultTeamPrefix' : 'defaultPlayerPrefix'];
     const sides = [];
     for (let i = 0; i < count; i++) {
-      sides.push(createSide((named && named[i]) || `${prefix} ${i + 1}`));
+      sides.push(createSide((named && named[i]) || `${prefix} ${i + 1}`, defaultColorFor(i)));
     }
     return {
       lang: 'es',
@@ -106,10 +108,11 @@ export function mountRunningTotal(container, def) {
     };
   }
 
-  function normaliseSide(s) {
+  function normaliseSide(s, index = 0) {
     return {
       id: (s && s.id) || 's_' + Math.random().toString(36).slice(2, 9),
       name: (s && typeof s.name === 'string' && s.name) || 'Jugador',
+      color: (s && isValidColor(s.color)) ? s.color : defaultColorFor(index),
       turns: Array.isArray(s && s.turns)
         ? s.turns.filter(x => x && typeof x.amount === 'number')
         : []
@@ -121,7 +124,7 @@ export function mountRunningTotal(container, def) {
     if (!parsed || !Array.isArray(parsed.sides) || parsed.sides.length === 0) {
       return defaultState();
     }
-    const sides = parsed.sides.map(normaliseSide);
+    const sides = parsed.sides.map((x, i) => normaliseSide(x, i));
     return {
       lang: parsed.lang === 'en' ? 'en' : 'es',
       dark: Boolean(parsed.dark),
@@ -161,7 +164,7 @@ export function mountRunningTotal(container, def) {
   function performUndo() {
     if (undoStack.length === 0) return;
     const prev = JSON.parse(undoStack.pop());
-    state.sides = prev.sides.map(normaliseSide);
+    state.sides = prev.sides.map((x, i) => normaliseSide(x, i));
     state.turnIndex = Math.min(Math.max(0, prev.turnIndex ?? 0), state.sides.length - 1);
     state.pending = prev.pending ?? 0;
     state.winnerId = prev.winnerId ?? null;
@@ -362,6 +365,22 @@ export function mountRunningTotal(container, def) {
       </div>
     </div>
 
+    <div id="playerModal" class="modal-backdrop" role="dialog" aria-modal="true">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <h2 id="lblPlayerModalTitle"></h2>
+          <button id="btnClosePlayerModal" aria-label="✕">✕</button>
+        </div>
+        <div class="field-label" id="lblNameField"></div>
+        <input type="text" id="playerNameInput" maxlength="18" />
+        <div id="colorFields">
+          <div class="field-label" id="lblColorField" style="margin-top:14px"></div>
+          <div class="color-row" id="colorRow"></div>
+        </div>
+        <button id="btnSavePlayer" class="primary" style="width:100%; padding:13px"></button>
+      </div>
+    </div>
+
     <div id="leaderboardModal" class="modal-backdrop" role="dialog" aria-modal="true">
       <div class="modal-sheet">
         <div class="modal-header">
@@ -433,6 +452,8 @@ export function mountRunningTotal(container, def) {
     $('btnDockUndo').disabled = !canUndo;
 
     const side = current();
+    // The screen takes the colour of the side being scored for.
+    if (def.playerColors) applyPlayerColor(side.color);
     setText('activePlayerLabel', side.name);
     $('btnRemovePlayer').disabled = state.sides.length <= MIN_SIDES;
     $('btnAddPlayer').disabled = state.sides.length >= MAX_SIDES;
@@ -468,7 +489,9 @@ export function mountRunningTotal(container, def) {
 
       row.innerHTML =
         `<div class="row-info">` +
-          `<div class="row-title">${escapeHtml(s.name)} ${milestone}` +
+          `<div class="row-title">` +
+            (def.playerColors ? `<span class="player-dot pc-${escapeHtml(s.color)}"></span>` : '') +
+            `${escapeHtml(s.name)} ${milestone}` +
             `${reached ? ` <span class="milestone-chip">${escapeHtml(dict.reachedTarget)}</span>` : ''}` +
           `</div>` +
           `<div class="row-desc turn-log">${lastFew || escapeHtml(dict.noTurnsYet)}</div>` +
@@ -659,20 +682,61 @@ export function mountRunningTotal(container, def) {
     if (state.sides.length >= MAX_SIDES) { alert(dict.maxPlayersAlert(MAX_SIDES)); return; }
     pushUndoSnapshot();
     const key = def.sideKind === 'team' ? 'defaultTeamPrefix' : 'defaultPlayerPrefix';
-    state.sides.push(createSide(`${dict[key]} ${state.sides.length + 1}`));
+    const free = firstFreeColor(state.sides.map(s => s.color));
+    state.sides.push(createSide(`${dict[key]} ${state.sides.length + 1}`, free));
     saveState();
     render();
   });
 
-  $('btnRenamePlayer').addEventListener('click', () => {
+  // Name (and colour, where the game uses them) are edited together in
+  // one in-app sheet, retiring the browser prompt().
+  let pendingColor = null;
+
+  function openPlayerModal() {
+    const dict = t();
     const side = current();
-    const next = prompt(t().renamePrompt, side.name);
-    if (next && next.trim()) {
-      pushUndoSnapshot();
-      side.name = next.trim().slice(0, 18);
-      saveState();
-      render();
-    }
+    pendingColor = side.color;
+    setText('lblPlayerModalTitle', def.sideKind === 'team' ? dict.editTeam : dict.editPlayer);
+    setText('lblNameField', dict.nameLabel);
+    setText('lblColorField', dict.colorLabel);
+    setText('btnSavePlayer', dict.saveChanges);
+    $('playerNameInput').value = side.name;
+    // Truco scores two fixed teams, so it has no colour picker.
+    $('colorFields').style.display = def.playerColors ? '' : 'none';
+    if (def.playerColors) renderSwatches();
+    $('playerModal').classList.add('open');
+    $('playerNameInput').focus();
+  }
+
+  function renderSwatches() {
+    const row = $('colorRow');
+    row.innerHTML = colorSwatchesHtml(pendingColor, state.lang);
+    const taken = state.sides.filter((_, i) => i !== state.turnIndex).map(s => s.color);
+    row.querySelectorAll('.swatch').forEach(btn => {
+      if (taken.includes(btn.dataset.color)) btn.classList.add('taken');
+      btn.addEventListener('click', () => {
+        pendingColor = btn.dataset.color;
+        renderSwatches();
+      });
+    });
+  }
+
+  function closePlayerModal() { $('playerModal').classList.remove('open'); }
+
+  $('btnRenamePlayer').addEventListener('click', openPlayerModal);
+  $('btnClosePlayerModal').addEventListener('click', closePlayerModal);
+  $('playerModal').addEventListener('click', e => {
+    if (e.target.id === 'playerModal') closePlayerModal();
+  });
+  $('btnSavePlayer').addEventListener('click', () => {
+    const side = current();
+    const name = $('playerNameInput').value.trim().slice(0, 18);
+    pushUndoSnapshot();
+    if (name) side.name = name;
+    if (def.playerColors && pendingColor && isValidColor(pendingColor)) side.color = pendingColor;
+    saveState();
+    closePlayerModal();
+    render();
   });
 
   $('btnRemovePlayer').addEventListener('click', () => {

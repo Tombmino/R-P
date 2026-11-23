@@ -181,12 +181,12 @@ test('undo takes back a banked turn and the farkle penalty with it', () => withA
   assert.equal(await app.activeSide(), 0, 'the turn comes back too');
 }));
 
-test('players can be added up to 8 and renamed', () => withApp(async app => {
+test('players can be added up to 6 and renamed', () => withApp(async app => {
   await app.rename('Tomás');
   assert.equal(await app.sideName(0), 'Tomás');
-  for (let i = 0; i < 6; i++) await app.addPlayer();
-  assert.equal(await app.sideCount(), 8);
-  assert.equal(await app.page.isDisabled('#btnAddPlayer'), true, 'capped at 8');
+  for (let i = 0; i < 4; i++) await app.addPlayer();
+  assert.equal(await app.sideCount(), 6);
+  assert.equal(await app.page.isDisabled('#btnAddPlayer'), true, 'capped at 6, one per colour');
 }));
 
 test('tapping a player makes it their turn and clears a half-built turn', () => withApp(async app => {

@@ -88,6 +88,7 @@ export const generalaDef = {
   version: 'v0.7',
   titleKey: 'gameTitle',
   maxPlayers: 6,
+  playerColors: true,
   strings,
   sections: [
     {

@@ -54,8 +54,10 @@ export const farkleDef = {
   strings,
   target: TARGET,
   minSides: 2,
-  maxSides: 8,
+  // Six, to match the six player colours one-to-one.
+  maxSides: 6,
   sideKind: 'player',
+  playerColors: true,
   defaultSideCount: 2,
   finalRound: true,
 

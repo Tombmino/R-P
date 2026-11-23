@@ -72,6 +72,100 @@ body.game-truco.dark {
   --accent-soft: rgba(252, 211, 77, 0.18);
 }
 
+/* ---------- Player colours ----------
+   Each player picks one of six; the screen takes the colour of the
+   player whose card is showing, so you know whose turn it is without
+   reading anything. These come AFTER the game accents on purpose:
+   both are single classes on <body>, so source order decides, and
+   during play the player colour should win. Truco sets no pc- class,
+   so it keeps its own accent. */
+
+body.pc-blue   { --accent: #2563eb; --accent-soft: rgba(37, 99, 235, 0.12); }
+body.pc-red    { --accent: #e11d48; --accent-soft: rgba(225, 29, 72, 0.12); }
+body.pc-amber  { --accent: #ea580c; --accent-soft: rgba(234, 88, 12, 0.12); }
+body.pc-pink   { --accent: #db2777; --accent-soft: rgba(219, 39, 119, 0.12); }
+body.pc-teal   { --accent: #0d9488; --accent-soft: rgba(13, 148, 136, 0.12); }
+body.pc-violet { --accent: #7c3aed; --accent-soft: rgba(124, 58, 237, 0.12); }
+
+body.pc-blue.dark   { --accent: #60a5fa; --accent-soft: rgba(96, 165, 250, 0.16); }
+body.pc-red.dark    { --accent: #fb7185; --accent-soft: rgba(251, 113, 133, 0.16); }
+body.pc-amber.dark  { --accent: #fb923c; --accent-soft: rgba(251, 146, 60, 0.16); }
+body.pc-pink.dark   { --accent: #f472b6; --accent-soft: rgba(244, 114, 182, 0.16); }
+body.pc-teal.dark   { --accent: #2dd4bf; --accent-soft: rgba(45, 212, 191, 0.16); }
+body.pc-violet.dark { --accent: #a78bfa; --accent-soft: rgba(167, 139, 250, 0.16); }
+
+/* A swatch paints itself in its own colour regardless of the body
+   class, so the picker shows all six at once. */
+.swatch.pc-blue   { background: #2563eb; }
+.swatch.pc-red    { background: #e11d48; }
+.swatch.pc-amber  { background: #ea580c; }
+.swatch.pc-pink   { background: #db2777; }
+.swatch.pc-teal   { background: #0d9488; }
+.swatch.pc-violet { background: #7c3aed; }
+
+.player-dot.pc-blue   { background: #2563eb; }
+.player-dot.pc-red    { background: #e11d48; }
+.player-dot.pc-amber  { background: #ea580c; }
+.player-dot.pc-pink   { background: #db2777; }
+.player-dot.pc-teal   { background: #0d9488; }
+.player-dot.pc-violet { background: #7c3aed; }
+
+body.dark .player-dot.pc-blue   { background: #60a5fa; }
+body.dark .player-dot.pc-red    { background: #fb7185; }
+body.dark .player-dot.pc-amber  { background: #fb923c; }
+body.dark .player-dot.pc-pink   { background: #f472b6; }
+body.dark .player-dot.pc-teal   { background: #2dd4bf; }
+body.dark .player-dot.pc-violet { background: #a78bfa; }
+
+.color-row {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.swatch {
+  aspect-ratio: 1;
+  min-height: 44px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  box-shadow: 0 0 0 1px var(--border) inset;
+  padding: 0;
+}
+
+.swatch.selected {
+  border-color: var(--text);
+  transform: scale(1.06);
+}
+
+.swatch.taken {
+  opacity: 0.45;
+}
+
+.field-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.player-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.side-row .player-dot {
+  width: 12px;
+  height: 12px;
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;

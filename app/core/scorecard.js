@@ -52,6 +52,7 @@ import { loadJSON, saveJSON } from './storage.js';
 import { showToast, escapeHtml } from './ui.js';
 import { mergeStrings, LANG_LABEL } from './i18n.js';
 import { rankPlayers, medalFor } from './standings.js';
+import { defaultColorFor, isValidColor, firstFreeColor, colorSwatchesHtml, applyPlayerColor, clearPlayerColor } from './colors.js';
 
 const MAX_UNDO = 25;
 
@@ -83,10 +84,11 @@ export function mountScorecard(container, def) {
     return extras;
   }
 
-  function createPlayer(name) {
+  function createPlayer(name, color) {
     return {
       id: 'p_' + Math.random().toString(36).slice(2, 9),
       name,
+      color: color || defaultColorFor(0),
       scores: createEmptyScores(),
       extras: createEmptyExtras()
     };
@@ -101,12 +103,16 @@ export function mountScorecard(container, def) {
       turnIndex: 0,   // whose turn it is
       viewIndex: 0,   // whose card is on screen
       winnerId: null, // set by instantWin
-      players: [createPlayer(`${prefix} 1`), createPlayer(`${prefix} 2`)]
+      players: [
+        createPlayer(`${prefix} 1`, defaultColorFor(0)),
+        createPlayer(`${prefix} 2`, defaultColorFor(1))
+      ]
     };
   }
 
   // Normalise a stored player so missing boxes/extras don't crash render.
-  function normalisePlayer(p) {
+  // Saves written before colours existed get one assigned by position.
+  function normalisePlayer(p, index = 0) {
     const scores = createEmptyScores();
     if (p && p.scores) {
       for (const k of Object.keys(scores)) {
@@ -122,6 +128,7 @@ export function mountScorecard(container, def) {
     return {
       id: (p && p.id) || 'p_' + Math.random().toString(36).slice(2, 9),
       name: (p && typeof p.name === 'string' && p.name) || 'Jugador',
+      color: (p && isValidColor(p.color)) ? p.color : defaultColorFor(index),
       scores,
       extras
     };
@@ -132,7 +139,7 @@ export function mountScorecard(container, def) {
     if (!parsed || !Array.isArray(parsed.players) || parsed.players.length === 0) {
       return defaultState();
     }
-    const players = parsed.players.map(normalisePlayer);
+    const players = parsed.players.map((p, i) => normalisePlayer(p, i));
     const legacy = typeof parsed.activeIndex === 'number' ? parsed.activeIndex : 0;
     const rawTurn = typeof parsed.turnIndex === 'number' ? parsed.turnIndex : legacy;
     const rawView = typeof parsed.viewIndex === 'number' ? parsed.viewIndex : rawTurn;
@@ -175,7 +182,7 @@ export function mountScorecard(container, def) {
   function performUndo() {
     if (undoStack.length === 0) return;
     const prev = JSON.parse(undoStack.pop());
-    state.players = prev.players.map(normalisePlayer);
+    state.players = prev.players.map((p, i) => normalisePlayer(p, i));
     const clamp = (n) => Math.min(Math.max(0, n), state.players.length - 1);
     state.turnIndex = clamp(prev.turnIndex ?? 0);
     state.viewIndex = clamp(prev.viewIndex ?? state.turnIndex);
@@ -365,6 +372,20 @@ export function mountScorecard(container, def) {
       </div>
     </div>
 
+    <div id="playerModal" class="modal-backdrop" role="dialog" aria-modal="true">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <h2 id="lblPlayerModalTitle"></h2>
+          <button id="btnClosePlayerModal" aria-label="✕">✕</button>
+        </div>
+        <div class="field-label" id="lblNameField"></div>
+        <input type="text" id="playerNameInput" maxlength="18" />
+        <div class="field-label" id="lblColorField" style="margin-top:14px"></div>
+        <div class="color-row" id="colorRow"></div>
+        <button id="btnSavePlayer" class="primary" style="width:100%; padding:13px"></button>
+      </div>
+    </div>
+
     <div id="leaderboardModal" class="modal-backdrop" role="dialog" aria-modal="true">
       <div class="modal-sheet">
         <div class="modal-header">
@@ -431,6 +452,12 @@ export function mountScorecard(container, def) {
 
     const turnPlayer = state.players[state.turnIndex];
     const viewPlayer = state.players[state.viewIndex];
+
+    // The screen takes the colour of the player whose card is showing.
+    // That is the turn player almost always; when you deliberately look
+    // back at someone else's card the colour follows the card, because
+    // those are the boxes you'd be filling.
+    if (def.playerColors) applyPlayerColor(viewPlayer.color);
     setText('activePlayerLabel', turnPlayer.name);
     const note = $('viewingNote');
     if (state.viewIndex !== state.turnIndex) {
@@ -450,6 +477,7 @@ export function mountScorecard(container, def) {
       tab.type = 'button';
       tab.className = 'player-tab' + (idx === state.viewIndex ? ' active' : '');
       tab.innerHTML =
+        (def.playerColors ? `<span class="player-dot pc-${escapeHtml(p.color)}"></span>` : '') +
         `<span class="p-name">${escapeHtml(p.name)}</span>` +
         `<span class="p-score">${grandTotal(p)}</span>`;
       tab.addEventListener('click', () => {
@@ -837,22 +865,66 @@ export function mountScorecard(container, def) {
     const dict = t();
     if (state.players.length >= MAX_PLAYERS) { alert(dict.maxPlayersAlert(MAX_PLAYERS)); return; }
     pushUndoSnapshot();
-    state.players.push(createPlayer(`${dict.defaultPlayerPrefix} ${state.players.length + 1}`));
+    const free = firstFreeColor(state.players.map(p => p.color));
+    state.players.push(createPlayer(`${dict.defaultPlayerPrefix} ${state.players.length + 1}`, free));
     state.turnIndex = state.players.length - 1;
     state.viewIndex = state.turnIndex;
     saveState();
     render();
   });
 
-  $('btnRenamePlayer').addEventListener('click', () => {
-    const current = state.players[state.viewIndex];
-    const next = prompt(t().renamePrompt, current.name);
-    if (next && next.trim()) {
-      pushUndoSnapshot();
-      current.name = next.trim().slice(0, 18);
-      saveState();
-      render();
-    }
+  // Name and colour are edited together in one in-app sheet. This also
+  // retires the browser prompt() that used to handle renaming.
+  let pendingColor = null;
+
+  function openPlayerModal() {
+    const dict = t();
+    const p = state.players[state.viewIndex];
+    pendingColor = p.color;
+    setText('lblPlayerModalTitle', dict.editPlayer);
+    setText('lblNameField', dict.nameLabel);
+    setText('lblColorField', dict.colorLabel);
+    setText('btnSavePlayer', dict.saveChanges);
+    $('playerNameInput').value = p.name;
+    renderSwatches();
+    $('playerModal').classList.add('open');
+    $('playerNameInput').focus();
+  }
+
+  function renderSwatches() {
+    const row = $('colorRow');
+    row.innerHTML = colorSwatchesHtml(pendingColor, state.lang);
+    // Colours already in use elsewhere are dimmed but still choosable —
+    // some tables genuinely want two blues, and blocking it would be
+    // more annoying than the clash.
+    const taken = state.players
+      .filter((_, i) => i !== state.viewIndex)
+      .map(p => p.color);
+    row.querySelectorAll('.swatch').forEach(btn => {
+      if (taken.includes(btn.dataset.color)) btn.classList.add('taken');
+      btn.addEventListener('click', () => {
+        pendingColor = btn.dataset.color;
+        renderSwatches();
+      });
+    });
+  }
+
+  function closePlayerModal() { $('playerModal').classList.remove('open'); }
+
+  $('btnRenamePlayer').addEventListener('click', openPlayerModal);
+  $('btnClosePlayerModal').addEventListener('click', closePlayerModal);
+  $('playerModal').addEventListener('click', e => {
+    if (e.target.id === 'playerModal') closePlayerModal();
+  });
+  $('btnSavePlayer').addEventListener('click', () => {
+    const p = state.players[state.viewIndex];
+    const name = $('playerNameInput').value.trim().slice(0, 18);
+    pushUndoSnapshot();
+    if (name) p.name = name;
+    if (pendingColor && isValidColor(pendingColor)) p.color = pendingColor;
+    saveState();
+    closePlayerModal();
+    render();
   });
 
   $('btnRemovePlayer').addEventListener('click', () => {

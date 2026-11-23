@@ -57,7 +57,7 @@ const ROUTES = {
 // class set by the theme toggle survives navigation.
 function setGameClass(id) {
   [...document.body.classList]
-    .filter(c => c.startsWith('game-'))
+    .filter(c => c.startsWith('game-') || c.startsWith('pc-'))
     .forEach(c => document.body.classList.remove(c));
   if (id) document.body.classList.add('game-' + id);
 }

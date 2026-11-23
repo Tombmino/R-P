@@ -140,7 +140,31 @@ function makeApi(page, extra) {
     async selectPlayer(i) { await page.click(`#playersBar .player-tab:nth-child(${i + 1})`); },
     async playerCount() { return page.locator('#playersBar .player-tab').count(); },
     async addPlayer() { await page.click('#btnAddPlayer'); },
-    async rename(name) { extra.answers.push(name); await page.click('#btnRenamePlayer'); },
+    async rename(name) {
+      await page.click('#btnRenamePlayer');
+      await page.waitForSelector('#playerModal.open');
+      await page.fill('#playerNameInput', name);
+      await page.click('#btnSavePlayer');
+    },
+    async setColor(colorId) {
+      await page.click('#btnRenamePlayer');
+      await page.waitForSelector('#playerModal.open');
+      await page.click(`#colorRow .swatch[data-color="${colorId}"]`);
+      await page.click('#btnSavePlayer');
+    },
+    async screenColor() {
+      const cls = (await page.getAttribute('body', 'class')) || '';
+      const m = cls.match(/\bpc-([a-z]+)\b/);
+      return m ? m[1] : null;
+    },
+    async playerDot(i) {
+      const cls = await page.locator('#playersBar .player-tab').nth(i).locator('.player-dot').getAttribute('class');
+      return (cls.match(/pc-([a-z]+)/) || [])[1] || null;
+    },
+    async sideDot(i) {
+      const cls = await api.sideRow(i).locator('.player-dot').getAttribute('class');
+      return (cls.match(/pc-([a-z]+)/) || [])[1] || null;
+    },
     async undo() { await page.click('#btnDockUndo'); },
     async saveGame() { await page.click('#btnFinishGame'); },
     async history() {
