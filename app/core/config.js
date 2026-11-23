@@ -4,5 +4,5 @@
 
 export const APP_NAME = 'Ronda y Punto';
 export const APP_SHORT = 'R&P';
-export const APP_VERSION = '0.9.1';
+export const APP_VERSION = '0.9.2';
 export const STORAGE_PREFIX = 'sk.';

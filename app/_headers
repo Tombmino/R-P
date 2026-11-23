@@ -8,10 +8,19 @@
 /*
   Cache-Control: public, max-age=0, must-revalidate
 
-# The service worker itself must never be cached, or a new one can
-# never take over.
+# The service worker script must always be revalidated, or a new one
+# can never take over. no-cache (revalidate before use) rather than
+# no-store (never keep a copy): no-cache is what the service worker
+# spec and every browser vendor recommend here, and no-store is known
+# to interact badly with some CDNs and HTTP caches.
 /sw.js
-  Cache-Control: no-cache, no-store, must-revalidate
+  Cache-Control: no-cache
+  Service-Worker-Allowed: /
+
+# The manifest decides whether the app can be installed at all, so it
+# must never be served from a stale copy either.
+/manifest.json
+  Cache-Control: no-cache
 
 # Icons do have stable content, so they can be held for a week.
 /icon-192.png

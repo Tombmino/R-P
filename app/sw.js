@@ -18,7 +18,7 @@
 // bad signal, you get the last one that loaded. Neither case can pin
 // you to an old build forever.
 
-const CACHE = 'ryp-v0.9.1';
+const CACHE = 'ryp-v0.9.2';
 const NETWORK_TIMEOUT_MS = 3000;
 
 const ASSETS = [
@@ -66,10 +66,6 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-function timeout(ms) {
-  return new Promise((_, reject) => setTimeout(() => reject(new Error('network timeout')), ms));
-}
-
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
@@ -86,8 +82,13 @@ self.addEventListener('fetch', (event) => {
       return res;
     });
 
+    let timer;
+    const expiry = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error('network timeout')), NETWORK_TIMEOUT_MS);
+    });
+
     try {
-      return await Promise.race([network, timeout(NETWORK_TIMEOUT_MS)]);
+      return await Promise.race([network, expiry]);
     } catch {
       const cached = await cache.match(req);
       if (cached) return cached;
@@ -98,6 +99,11 @@ self.addEventListener('fetch', (event) => {
       // Nothing cached to fall back to, so wait for the network after
       // all rather than failing on the timeout alone.
       return network;
+    } finally {
+      // Without this every request leaves a three-second timer behind,
+      // which keeps the worker from going idle and makes it look busy
+      // long after the response has gone out.
+      clearTimeout(timer);
     }
   })());
 });
