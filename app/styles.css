@@ -37,6 +37,41 @@ body.dark {
   --shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
 }
 
+/* ---------- Per-game accent ----------
+   One accent per game, so two score sheets that look alike (Yahtzee and
+   Generala) are never mistaken for each other at a glance. Each accent
+   echoes how the game is played in real life: Generala a warm Argentine
+   terracotta, Farkle the red of its dice, Truco the wood of the
+   toothpicks it's traditionally scored with. Set by main.js as a
+   `game-<id>` class on <body>. Yahtzee uses the default blue. */
+
+body.game-generala {
+  --accent: #c2410c;
+  --accent-soft: rgba(194, 65, 12, 0.12);
+}
+body.game-generala.dark {
+  --accent: #fb923c;
+  --accent-soft: rgba(251, 146, 60, 0.15);
+}
+
+body.game-farkle {
+  --accent: #dc2626;
+  --accent-soft: rgba(220, 38, 38, 0.12);
+}
+body.game-farkle.dark {
+  --accent: #f87171;
+  --accent-soft: rgba(248, 113, 113, 0.15);
+}
+
+body.game-truco {
+  --accent: #a16207;
+  --accent-soft: rgba(161, 98, 7, 0.12);
+}
+body.game-truco.dark {
+  --accent: #fcd34d;
+  --accent-soft: rgba(252, 211, 77, 0.18);
+}
+
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;

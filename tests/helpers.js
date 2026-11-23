@@ -64,9 +64,22 @@ function makeApi(page, extra) {
     async reload() { await page.reload(); await page.waitForSelector('#btnLang'); },
 
     // ---- score sheet rows ----
-    row(title) { return page.locator('.row-item', { has: page.locator('.row-title', { hasText: title }) }); },
-    async cell(title) { return (await api.row(title).locator('.row-score').textContent()).trim(); },
-    async open(title) { await api.row(title).click(); await page.waitForSelector('#scoreModal.open'); },
+    // Prefer an exact title match, falling back to a substring match.
+    // Needed because some names contain others: Generala's "Generala"
+    // and "Doble Generala", while Yahtzee's row reads "Ones (Aces)" and
+    // the tests ask for "Ones".
+    async row(title) {
+      const esc = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const exact = page.locator('.row-item', {
+        has: page.locator('.row-title', { hasText: new RegExp(`^${esc}$`) })
+      });
+      if (await exact.count() === 1) return exact;
+      return page.locator('.row-item', {
+        has: page.locator('.row-title', { hasText: title })
+      }).first();
+    },
+    async cell(title) { return ((await (await api.row(title)).locator('.row-score').textContent())).trim(); },
+    async open(title) { await (await api.row(title)).click(); await page.waitForSelector('#scoreModal.open'); },
     // Upper/face boxes: pick how many dice showed that face.
     async upper(title, count) { await api.open(title); await page.click(`#modalBody .die-btn:nth-child(${count + 1})`); },
     // Option boxes (fixed values; Generala has two — normal and servida).
@@ -79,7 +92,7 @@ function makeApi(page, extra) {
     async scratch(title) { await api.open(title); await page.click('#btnZeroScore'); },
     async clear(title) { await api.open(title); await page.click('#btnClearScore'); },
     // Tapping a gated box shows a toast and never opens the sheet.
-    async tapRow(title) { await api.row(title).click(); },
+    async tapRow(title) { await (await api.row(title)).click(); },
 
     // ---- section + extras readouts (engine id scheme) ----
     async sectionCount(id) { return api.text(`#section-${id}-count`); },

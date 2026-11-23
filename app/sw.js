@@ -18,7 +18,8 @@ const ASSETS = [
   './core/i18n.js',
   './core/standings.js',
   './core/scorecard.js',
-  './games/yahtzee.js'
+  './games/yahtzee.js',
+  './games/generala.js'
 ];
 
 self.addEventListener('install', (event) => {
