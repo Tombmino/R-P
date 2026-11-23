@@ -228,3 +228,14 @@ test('Farkle carries its red accent', () => withApp(async app => {
   const cls = await app.page.getAttribute('body', 'class');
   assert.match(cls, /game-farkle/);
 }));
+
+test('the dock shows what the current player would have if they banked', () => withApp(async app => {
+  await app.addPreset(1000);
+  await app.action('bank');          // P1 banks 1000, P2 is up
+  await app.addPreset(500);
+  await app.addPreset(300);
+  assert.equal(await app.text('#lblGrandTotal'), 'Player 2');
+  assert.equal(await app.total(), 800, 'banked 0 plus 800 pending');
+  await app.action('bank');
+  assert.equal(await app.sideTotal(1), 800);
+}));

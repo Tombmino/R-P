@@ -49,9 +49,12 @@ async function freshApp({ game = 'yahtzee', lang = 'en', autoAdvance = false } =
     return d.accept();
   });
   await page.goto(`${baseUrl}#/${game}`);
-  await page.waitForSelector('#btnLang');
+  // Game screens expose #btnLang; the home screen shows game cards.
+  await page.waitForSelector(game ? '#btnLang, .game-card' : '.game-card');
   const app = makeApi(page, { dialogs, answers, errors, context, game });
-  if (lang === 'en' && (await page.textContent('#btnLang')).startsWith('ES')) await page.click('#btnLang');
+  if (await page.$('#btnLang')) {
+    if (lang === 'en' && (await page.textContent('#btnLang')).startsWith('ES')) await page.click('#btnLang');
+  }
   const toggle = await page.$('#chkAutoAdvance');
   if (toggle && (await page.isChecked('#chkAutoAdvance')) !== autoAdvance) await page.click('#chkAutoAdvance');
   return app;

@@ -12,8 +12,8 @@ const GAMES = [
     desc: '10 boxes, servida bonuses, instant win.' },
   { id: 'farkle',   name: 'Farkle',   kind: 'dice',  href: '#/farkle',
     desc: 'Push your luck, then bank it.' },
-  { id: 'truco',    name: 'Truco',    kind: 'cards', href: null,
-    desc: 'Count to 30 on toothpicks. Coming soon.' }
+  { id: 'truco',    name: 'Truco',    kind: 'cards', href: '#/truco',
+    desc: 'To 30, counted on toothpicks.' }
 ];
 
 export function renderHome(container) {

@@ -84,9 +84,13 @@ export function mountRunningTotal(container, def) {
   function defaultState() {
     const dict = STRINGS.es;
     const count = def.defaultSideCount || MIN_SIDES;
+    // A game may name its sides outright — Truco's two sides are
+    // "Nosotros" and "Ellos", not "Team 1" and "Team 2".
+    const named = def.defaultSideNames ? def.defaultSideNames(dict) : null;
+    const prefix = dict[def.sideKind === 'team' ? 'defaultTeamPrefix' : 'defaultPlayerPrefix'];
     const sides = [];
     for (let i = 0; i < count; i++) {
-      sides.push(createSide(`${dict[def.sideKind === 'team' ? 'defaultTeamPrefix' : 'defaultPlayerPrefix']} ${i + 1}`));
+      sides.push(createSide((named && named[i]) || `${prefix} ${i + 1}`));
     }
     return {
       lang: 'es',
@@ -252,6 +256,15 @@ export function mountRunningTotal(container, def) {
       return;
     }
 
+    // Farkle passes the dice after every turn. Truco does not: a hand
+    // resolves in favour of one side, you record it, and the side you're
+    // scoring for stays selected.
+    if (def.rotateAfterCommit === false) {
+      saveState();
+      render();
+      return;
+    }
+
     state.turnIndex = (state.turnIndex + 1) % state.sides.length;
     saveState();
     render();
@@ -393,7 +406,9 @@ export function mountRunningTotal(container, def) {
     setText('btnLang', LANG_LABEL[state.lang]);
     setText('btnTheme', state.dark ? '☀️' : '🌙');
     setText('btnReset', dict.reset);
-    setText('lblActivePlayer', dict.activePlayer);
+    // Farkle rotates turns, so "Turn:" is right there. Truco does not —
+    // you pick the side that won the hand — so it overrides this.
+    setText('lblActivePlayer', dict[def.activePlayerLabelKey || 'activePlayer']);
     setText('btnRenamePlayer', dict.rename);
     setText('btnAddPlayer', def.sideKind === 'team' ? dict.addTeam : dict.addPlayer);
     setText('btnFinishGame', dict.finishGame);
@@ -407,7 +422,6 @@ export function mountRunningTotal(container, def) {
     setText('lblEntry', dict.entryTitle);
     setText('lblTarget', dict.targetShort(state.target));
     setText('targetLabel', dict.targetLong(state.target));
-    setText('lblGrandTotal', dict.grandTotal);
     if (TWO_PHASE) setText('lblPending', dict.pendingLabel);
 
     (def.actions || []).forEach(a => setText(`action-${a.id}`, dict[a.labelKey]));
@@ -424,6 +438,10 @@ export function mountRunningTotal(container, def) {
     $('btnAddPlayer').disabled = state.sides.length >= MAX_SIDES;
 
     if (TWO_PHASE) setText('pendingVal', state.pending);
+    // The dock shows the selected side's standing. With a two-phase
+    // game it includes the turn being built, so it reads as "what I'd
+    // have if I banked now" — the number the decision turns on.
+    setText('lblGrandTotal', side.name);
     setText('grandTotalVal', totalOf(side) + (TWO_PHASE ? state.pending : 0));
 
     // Sides list: name, their turn log summary, running total.
