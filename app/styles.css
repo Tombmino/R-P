@@ -1016,48 +1016,42 @@ body.game-farkle.dark .preset-chip {
   font-weight: 800;
 }
 
-/* ---------- Truco: toothpick tally ----------
-   Points are drawn as palillos the way they are laid out on a table:
-   groups of five, four uprights crossed by a diagonal. */
+/* ---------- Truco: the Argentine square tally ----------
+   Points are kept as they are on a table: every five is a square of
+   matchsticks, four sides with a diagonal across to close it. A
+   partial group shows only the sticks laid so far. */
 
 .tally {
   display: flex;
-  align-items: flex-end;
-  gap: 7px;
+  align-items: center;
+  gap: 5px;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
 
-.tally-group {
-  position: relative;
-  display: flex;
-  gap: 3px;
-  height: 26px;
-  align-items: flex-end;
-}
-
-.tally-stick {
-  width: 3px;
-  height: 24px;
-  border-radius: 2px;
-  background: var(--accent);
-}
-
-.tally-group.of-five .tally-stick:nth-child(5) {
-  position: absolute;
-  left: -2px;
-  top: 1px;
+.tally-square {
   width: 26px;
-  height: 3px;
-  transform: rotate(28deg);
-  transform-origin: left center;
+  height: 26px;
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.tally-square line {
+  stroke: var(--accent);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+}
+
+/* A closed group reads as one unit of five at a glance. */
+.tally-square.complete line {
+  stroke-width: 3.8;
 }
 
 .tally-num {
-  font-size: 1.1rem;
+  font-size: 1.15rem;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
-  margin-left: 6px;
+  margin-left: 7px;
   color: var(--text);
 }
 
@@ -1065,9 +1059,12 @@ body.game-farkle.dark .preset-chip {
   color: var(--accent);
 }
 
+/* The line between the malas and the buenas. */
 .tally-split {
-  width: 1px;
+  width: 2px;
   align-self: stretch;
+  min-height: 24px;
+  border-radius: 1px;
   background: var(--border);
   margin: 0 3px;
 }

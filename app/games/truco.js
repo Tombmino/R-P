@@ -5,10 +5,10 @@
 // because falta envido is worth whatever is left to finish the current
 // half, so the sheet has to make the halfway line obvious.
 //
-// Scored the traditional way: points are drawn as palillos (toothpicks)
-// in groups of five — four uprights crossed by a diagonal — with the
-// malas and the buenas separated by a line, and the numeral alongside
-// for quick reading (user request, 23 Nov).
+// Scored the traditional Argentine way: each group of five points is a
+// square of matchsticks — four sides, then a diagonal across the middle
+// to close it — with the malas and the buenas separated by a line and
+// the numeral alongside for quick reading (user request, 23 Nov).
 //
 // The app does not deal cards or track hands. A hand resolves in favour
 // of one side; you tap that side and tap what it was worth. Because of
@@ -58,17 +58,36 @@ const strings = {
   }
 };
 
-// Draw n points as toothpick groups: four uprights and a diagonal per
-// five. The fifth <span> in a full group is restyled by CSS into the
-// diagonal that crosses the other four.
+// Points are drawn the way they are laid out on an Argentine table:
+// each group of five is a little square built one matchstick at a
+// time, and the fifth stick closes it as a diagonal across the middle.
+// Four sides plus the diagonal, "el cuadrito".
+//
+// Order of the sticks, so a partial square always builds the same way:
+//   1 top · 2 right · 3 bottom · 4 left · 5 diagonal
+const SEGMENTS = [
+  [4, 4, 28, 4],    // 1 top
+  [28, 4, 28, 28],  // 2 right
+  [28, 28, 4, 28],  // 3 bottom
+  [4, 28, 4, 4],    // 4 left
+  [4, 4, 28, 28]    // 5 diagonal, closing the group
+];
+
+function squareSvg(points) {
+  const lines = SEGMENTS.slice(0, points)
+    .map(([x1, y1, x2, y2]) =>
+      `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" />`)
+    .join('');
+  return `<svg class="tally-square${points === 5 ? ' complete' : ''}" ` +
+         `viewBox="0 0 32 32" aria-hidden="true">${lines}</svg>`;
+}
+
 function tallyGroups(n) {
   let html = '';
   let left = n;
   while (left > 0) {
     const inGroup = Math.min(5, left);
-    html += `<span class="tally-group${inGroup === 5 ? ' of-five' : ''}">` +
-      '<span class="tally-stick"></span>'.repeat(inGroup) +
-      '</span>';
+    html += squareSvg(inGroup);
     left -= inGroup;
   }
   return html;
@@ -86,7 +105,7 @@ function renderTotal(total) {
 
 const rules = {
   es: {
-    howItWorks: 'Se juega a 30 puntos: los primeros 15 son las malas y los segundos 15 las buenas. La app no reparte cartas ni sigue las manos: cuando una mano termina, tocas el bando que la ganó y tocas cuánto valía. Los puntos se dibujan como palillos, en grupos de cinco, igual que sobre la mesa.',
+    howItWorks: 'Se juega a 30 puntos: los primeros 15 son las malas y los segundos 15 las buenas. La app no reparte cartas ni sigue las manos: cuando una mano termina, tocas el bando que la ganó y tocas cuánto valía. Los puntos se dibujan como sobre la mesa: cada cinco forman un cuadrito de fósforos, cuatro lados y la diagonal que lo cierra.',
     scoring: [
       { name: 'Mano ganada sin cantar truco', value: '1' },
       { name: 'Truco', value: '2' },
@@ -107,7 +126,7 @@ const rules = {
     note: 'La flor se juega o no se juega según la casa. La app no cambia las cuentas: solo cambia qué valores salen, así que acordadlo antes de empezar.'
   },
   en: {
-    howItWorks: 'Played to 30 points: the first 15 are the malas, the second 15 the buenas. The app does not deal cards or follow the hands — when a hand finishes you tap the side that won and tap what it was worth. Points are drawn as toothpicks in groups of five, the way they are laid out on a table.',
+    howItWorks: 'Played to 30 points: the first 15 are the malas, the second 15 the buenas. The app does not deal cards or follow the hands — when a hand finishes you tap the side that won and tap what it was worth. Points are drawn the way they are laid out on a table: every five make a little square of matchsticks, four sides and the diagonal that closes it.',
     scoring: [
       { name: 'Hand won with no truco called', value: '1' },
       { name: 'Truco', value: '2' },
@@ -134,6 +153,7 @@ export const trucoDef = {
   storageKey: 'truco',
   titleKey: 'gameTitle',
   strings,
+  rules,
   rules,
   target: TARGET,
   // Two sides for pairs or a head-to-head; three for 1v1v1.

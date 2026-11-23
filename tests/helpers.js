@@ -129,7 +129,10 @@ function makeApi(page, extra) {
       return -1;
     },
     async selectSide(i) { await api.sideRow(i).click(); },
-    async tallySticks(i) { return api.sideRow(i).locator('.tally-stick').count(); },
+    // One drawn matchstick per point, across however many squares.
+    async tallySticks(i) { return api.sideRow(i).locator('.tally-square line').count(); },
+    async tallySquares(i) { return api.sideRow(i).locator('.tally-square').count(); },
+    async completeSquares(i) { return api.sideRow(i).locator('.tally-square.complete').count(); },
     async hasMilestone(i) { return api.sideRow(i).locator('.milestone-chip').count(); },
 
     // ---- rules sheet ----

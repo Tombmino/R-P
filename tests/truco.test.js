@@ -82,30 +82,52 @@ test('more than 30 in one go is refused', () => withApp(async app => {
 
 // ---------- Toothpicks ----------
 
-test('points are drawn as one toothpick each', () => withApp(async app => {
+test('one matchstick is laid per point', () => withApp(async app => {
   await app.addPreset(1);
   assert.equal(await app.tallySticks(0), 1);
   await app.addPreset(3);
-  assert.equal(await app.tallySticks(0), 4);
+  assert.equal(await app.tallySticks(0), 4, 'four sides of the square');
   await app.addPreset(1);
-  assert.equal(await app.tallySticks(0), 5);
+  assert.equal(await app.tallySticks(0), 5, 'the diagonal closes it');
 }));
 
-test('toothpicks are grouped in fives, the fifth crossing the other four', () => withApp(async app => {
-  await app.addPreset(5);
-  const groups = await app.sideRow(0).locator('.tally-group').count();
-  assert.equal(groups, 1, 'five points is one group');
-  const full = await app.sideRow(0).locator('.tally-group.of-five').count();
-  assert.equal(full, 1, 'and it is marked as a complete group of five');
+test('every five points closes a square, the fifth stick being the diagonal', () => withApp(async app => {
+  await app.addPreset(4);
+  assert.equal(await app.tallySquares(0), 1, 'four points is one open square');
+  assert.equal(await app.completeSquares(0), 0, 'not closed yet');
+
+  await app.addPreset(1);
+  assert.equal(await app.tallySquares(0), 1, 'still one square');
+  assert.equal(await app.completeSquares(0), 1, 'now closed by the diagonal');
 
   await app.addPreset(2);
-  assert.equal(await app.sideRow(0).locator('.tally-group').count(), 2);
-  assert.equal(await app.sideRow(0).locator('.tally-group.of-five').count(), 1,
-    'the second group is incomplete');
+  assert.equal(await app.tallySquares(0), 2, 'a second square is started');
+  assert.equal(await app.completeSquares(0), 1, 'and it is still open');
   assert.equal(await app.tallySticks(0), 7);
 }));
 
-test('the numeral is shown alongside the toothpicks', () => withApp(async app => {
+test('the fifth stick is drawn as the diagonal, corner to corner', () => withApp(async app => {
+  await app.addPreset(5);
+  const lines = await app.page.$$eval('.tally-square line',
+    ls => ls.map(l => ['x1','y1','x2','y2'].map(a => l.getAttribute(a)).join(',')));
+  assert.equal(lines.length, 5);
+  assert.equal(lines[4], '4,4,28,28', 'last stick runs across the square');
+  // The first four are the sides: each one horizontal or vertical.
+  for (const seg of lines.slice(0, 4)) {
+    const [x1, y1, x2, y2] = seg.split(',');
+    assert.ok(x1 === x2 || y1 === y2, `side, not diagonal: ${seg}`);
+  }
+}));
+
+test('fifteen points is three closed squares, and thirty is six', () => withApp(async app => {
+  await app.typeAmount(15);
+  assert.equal(await app.completeSquares(0), 3);
+  assert.equal(await app.tallySticks(0), 15);
+  await app.typeAmount(15);
+  assert.equal(await app.completeSquares(0), 6, 'three malas and three buenas');
+}));
+
+test('the numeral is shown alongside the squares', () => withApp(async app => {
   await app.addPreset(4);
   await app.addPreset(3);
   assert.equal(await app.sideTotal(0), 7, 'read from the numeral');
