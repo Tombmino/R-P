@@ -273,6 +273,19 @@ test('BUG 6 fix: a tie shows joint winners', () => withApp(async app => {
   assert.match(h[0], /Player 1/); assert.match(h[0].split('—')[0], /Player 2/, 'history names both winners');
 }));
 
+test('home button returns to the game chooser, and reopening Yahtzee resumes the game', () => withApp(async app => {
+  await app.fixed('Yahtzee');
+  assert.equal(await app.total(), 50);
+  await app.page.click('#btnHome');
+  // Back on the home screen the game chooser shows the Yahtzee card again.
+  await app.page.waitForSelector('a.game-card:not(.coming-soon)');
+  assert.equal(await app.page.$('#btnLang'), null, 'game chrome is gone');
+  // Re-entering Yahtzee: score is still there.
+  await app.page.click('a.game-card:not(.coming-soon)');
+  await app.page.waitForSelector('#btnLang');
+  assert.equal(await app.total(), 50);
+}));
+
 test('undo persists across reload', () => withApp(async app => {
   await app.fixed('Yahtzee');
   await app.reload();

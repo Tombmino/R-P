@@ -33,6 +33,7 @@ const I18N = {
     langLabel: 'ES 🇪🇸',
     installPrompt: '📲 Instalar Yahtzee como App',
     installBtn: 'Instalar',
+    home: 'Inicio',
     reset: 'Reiniciar',
     activePlayer: 'Jugador activo:',
     viewingNote: (name) => `Viendo a ${name}`,
@@ -98,6 +99,7 @@ const I18N = {
     langLabel: 'EN 🇺🇸',
     installPrompt: '📲 Install Yahtzee as an App',
     installBtn: 'Install',
+    home: 'Home',
     reset: 'Reset',
     activePlayer: 'Active player:',
     viewingNote: (name) => `Viewing ${name}`,
@@ -362,6 +364,7 @@ const TEMPLATE = `
           <span class="badge">v0.6</span>
         </div>
         <div class="actions">
+          <button id="btnHome" title="Inicio / Home">🏠</button>
           <button id="btnUndo" title="Deshacer / Undo" disabled>↩️</button>
           <button id="btnHistory" title="Historial / History">📜</button>
           <button id="btnLang" class="lang-btn" title="Idioma / Language">ES 🇪🇸</button>
@@ -853,6 +856,13 @@ export function renderYahtzee(container) {
       await triggerInstallPrompt();
       document.getElementById('installBanner').classList.remove('visible');
     });
+  });
+
+  // Home button: back to the game chooser. The in-game state is already
+  // saved to localStorage, so the next visit to #/yahtzee resumes right
+  // where the player left off.
+  document.getElementById('btnHome').addEventListener('click', () => {
+    location.hash = '#/';
   });
 
   document.getElementById('btnUndo').addEventListener('click', performUndo);
