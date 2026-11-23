@@ -132,7 +132,6 @@ const rules = {
 export const trucoDef = {
   id: 'truco',
   storageKey: 'truco',
-  version: 'v0.7',
   titleKey: 'gameTitle',
   strings,
   rules,

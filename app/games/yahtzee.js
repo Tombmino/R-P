@@ -102,7 +102,6 @@ const rules = {
 export const yahtzeeDef = {
   id: 'yahtzee',
   storageKey: 'yahtzee',
-  version: 'v0.7',
   titleKey: 'gameTitle',
   maxPlayers: 6,
   playerColors: true,

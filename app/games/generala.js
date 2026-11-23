@@ -110,7 +110,6 @@ const rules = {
 export const generalaDef = {
   id: 'generala',
   storageKey: 'generala',
-  version: 'v0.7',
   titleKey: 'gameTitle',
   maxPlayers: 6,
   playerColors: true,

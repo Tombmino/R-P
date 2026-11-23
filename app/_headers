@@ -1,0 +1,22 @@
+# Netlify response headers.
+#
+# The app has no build step, so filenames are not content-hashed and a
+# long browser cache would pin people to an old version the same way
+# the old cache-first service worker did. Everything revalidates on
+# each request; with ETags that is a cheap 304, not a re-download.
+# Offline support comes from the service worker, not from here.
+/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+# The service worker itself must never be cached, or a new one can
+# never take over.
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+# Icons do have stable content, so they can be held for a week.
+/icon-192.png
+  Cache-Control: public, max-age=604800
+/icon-512.png
+  Cache-Control: public, max-age=604800
+/icon-180.png
+  Cache-Control: public, max-age=604800

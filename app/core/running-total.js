@@ -52,6 +52,7 @@
 import { loadJSON, saveJSON } from './storage.js';
 import { showToast, escapeHtml } from './ui.js';
 import { mergeStrings, LANG_LABEL } from './i18n.js';
+import { APP_VERSION } from './config.js';
 import { mountRules, RULES_MODAL_HTML } from './rules.js';
 import { rankPlayers, medalFor } from './standings.js';
 import { defaultColorFor, isValidColor, firstFreeColor, colorSwatchesHtml, applyPlayerColor } from './colors.js';
@@ -298,7 +299,7 @@ export function mountRunningTotal(container, def) {
         <div class="top-bar">
           <div class="brand">
             <h1 id="gameTitle"></h1>
-            <span class="badge">${escapeHtml(def.version || '')}</span>
+            <span class="badge" id="appVersion">v${escapeHtml(APP_VERSION)}</span>
           </div>
           <div class="actions">
             <button id="btnHome" title="Inicio / Home">🏠</button>

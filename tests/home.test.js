@@ -49,3 +49,14 @@ test('an unknown route falls back to the home screen', async () => {
     assert.deepEqual(app.errors, []);
   } finally { await app.close(); }
 });
+
+test('every screen shows the same app version, from one source', async () => {
+  const { APP_VERSION } = await import('../app/core/config.js');
+  for (const game of GAMES) {
+    const app = await freshApp({ game });
+    try {
+      assert.equal(await app.text('#appVersion'), `v${APP_VERSION}`,
+        `${game} reports the app version`);
+    } finally { await app.close(); }
+  }
+});

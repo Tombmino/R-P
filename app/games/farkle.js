@@ -96,7 +96,6 @@ const rules = {
 export const farkleDef = {
   id: 'farkle',
   storageKey: 'farkle',
-  version: 'v0.7',
   titleKey: 'gameTitle',
   strings,
   rules,
