@@ -32,14 +32,14 @@ test('upper section: each box scores count × face', () => withApp(async app => 
 test('upper bonus: 62 gives no bonus, 63 gives +35', () => withApp(async app => {
   await app.upper('Ones', 2); await app.upper('Twos', 3); await app.upper('Threes', 3);
   await app.upper('Fours', 3); await app.upper('Fives', 3); await app.upper('Sixes', 3);
-  assert.equal(await app.text('#upperSubtotalVal'), '62');
-  assert.equal(await app.text('#upperBonusVal'), '0');
-  assert.equal(await app.text('#upperProgressText'), '1 pts needed for +35 bonus');
+  assert.equal(await app.sectionSubtotal('upper'), '62');
+  assert.equal(await app.sectionBonus('upper'), '0');
+  assert.equal(await app.sectionProgress('upper'), '1 pts needed for +35 bonus');
   assert.equal(await app.total(), 62);
 
   await app.upper('Ones', 3);
-  assert.equal(await app.text('#upperSubtotalVal'), '63');
-  assert.equal(await app.text('#upperBonusVal'), '+35');
+  assert.equal(await app.sectionSubtotal('upper'), '63');
+  assert.equal(await app.sectionBonus('upper'), '+35');
   assert.equal(await app.total(), 98);
 }));
 
@@ -64,24 +64,24 @@ test('scratch sets 0, clear empties the box', () => withApp(async app => {
   assert.equal(await app.cell('Yahtzee'), '0');
   await app.clear('Yahtzee');
   assert.equal(await app.cell('Yahtzee'), '—');
-  assert.equal(await app.text('#lowerCountBadge'), '0 / 7');
+  assert.equal(await app.sectionCount('lower'), '0 / 7');
 }));
 
 test('extra Yahtzee bonus adds 100 each, minus button removes', () => withApp(async app => {
   await app.fixed('Yahtzee');
-  await app.page.click('#btnExtraPlus'); await app.page.click('#btnExtraPlus');
+  await app.extraPlus('extraYahtzee'); await app.extraPlus('extraYahtzee');
   assert.equal(await app.total(), 250);
-  await app.page.click('#btnExtraMinus');
+  await app.extraMinus('extraYahtzee');
   assert.equal(await app.total(), 150);
-  await app.page.click('#btnExtraMinus'); await app.page.click('#btnExtraMinus');
-  assert.equal(await app.text('#extraYahtzeeCount'), '0', 'never goes below 0');
+  await app.extraMinus('extraYahtzee'); await app.extraMinus('extraYahtzee');
+  assert.equal(await app.extraCount('extraYahtzee'), '0', 'never goes below 0');
 }));
 
 test('perfect card totals 375', () => withApp(async app => {
   await app.fillCard({ ones: 5, twos: 5, threes: 5, fours: 5, fives: 5, sixes: 5, tk: 30, fk: 30, ch: 30 });
   assert.equal(await app.total(), 375);
-  assert.equal(await app.text('#upperCountBadge'), '6 / 6');
-  assert.equal(await app.text('#lowerCountBadge'), '7 / 7');
+  assert.equal(await app.sectionCount('upper'), '6 / 6');
+  assert.equal(await app.sectionCount('lower'), '7 / 7');
 }));
 
 // ---------- Turns and players ----------
@@ -182,7 +182,7 @@ test('save game with no scores is refused', () => withApp(async app => {
 test('language switch translates the screen and default player names only', () => withApp(async app => {
   await app.rename('Ana');
   await app.page.click('#btnLang');                       // to Spanish
-  assert.equal(await app.text('#lblUpperSection'), 'Sección Superior');
+  assert.equal(await app.sectionLabel('upper'), 'Sección Superior');
   assert.equal(await app.text('#btnLang'), 'ES 🇪🇸');
   assert.deepEqual(await app.standings(), ['🥇 Ana 0 pts', '🥈 Jugador 2 0 pts']);
   assert.equal(await app.page.getAttribute('html', 'lang'), 'es');
@@ -249,10 +249,10 @@ test('BUG 3 fix: typed scores above 30 are rejected for sum boxes', () => withAp
 }));
 
 test('BUG 4 fix: extra Yahtzee bonus needs a 50 in the Yahtzee box', () => withApp(async app => {
-  await app.page.click('#btnExtraPlus');      // Yahtzee box empty
+  await app.extraPlus('extraYahtzee');      // Yahtzee box empty
   assert.equal(await app.total(), 0, 'not allowed with empty Yahtzee box');
   await app.scratch('Yahtzee');
-  await app.page.click('#btnExtraPlus');      // Yahtzee box scratched
+  await app.extraPlus('extraYahtzee');      // Yahtzee box scratched
   assert.equal(await app.total(), 0, 'not allowed with scratched Yahtzee box');
 }));
 
@@ -260,7 +260,7 @@ test('BUG 5 fix: the game ends and shows final standings when every card is full
   await app.fillCard();
   await app.selectPlayer(1);
   await app.fillCard();
-  assert.equal(await app.page.isVisible('#leaderboardModal.open'), true);
+  assert.equal(await app.gameOverOpen(), true);
 }));
 
 test('BUG 6 fix: a tie shows joint winners', () => withApp(async app => {

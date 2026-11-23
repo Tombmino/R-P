@@ -34,9 +34,9 @@ async function teardown() {
   server?.close();
 }
 
-// Fresh phone-sized page with empty storage. Pop-ups (confirm/prompt/alert)
-// are answered from a queue; by default confirm = OK.
-async function freshApp({ lang = 'en', autoAdvance = false } = {}) {
+// Fresh phone-sized page with empty storage, landed on one game's screen.
+// Pop-ups (confirm/prompt/alert) are answered from a queue; confirm = OK.
+async function freshApp({ game = 'yahtzee', lang = 'en', autoAdvance = false } = {}) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
   const page = await context.newPage();
   const errors = [];
@@ -48,13 +48,12 @@ async function freshApp({ lang = 'en', autoAdvance = false } = {}) {
     if (d.type() === 'prompt') return d.accept(answers.length ? answers.shift() : d.defaultValue());
     return d.accept();
   });
-  // Load the Yahtzee screen directly (the shell routes `#/yahtzee` there).
-  // Wait for the module graph to mount before touching anything.
-  await page.goto(baseUrl + '#/yahtzee');
+  await page.goto(`${baseUrl}#/${game}`);
   await page.waitForSelector('#btnLang');
-  const app = makeApi(page, { dialogs, answers, errors, context });
+  const app = makeApi(page, { dialogs, answers, errors, context, game });
   if (lang === 'en' && (await page.textContent('#btnLang')).startsWith('ES')) await page.click('#btnLang');
-  if ((await page.isChecked('#chkAutoAdvance')) !== autoAdvance) await page.click('#chkAutoAdvance');
+  const toggle = await page.$('#chkAutoAdvance');
+  if (toggle && (await page.isChecked('#chkAutoAdvance')) !== autoAdvance) await page.click('#chkAutoAdvance');
   return app;
 }
 
@@ -63,19 +62,39 @@ function makeApi(page, extra) {
     page, ...extra,
     async close() { await extra.context.close(); },
     async reload() { await page.reload(); await page.waitForSelector('#btnLang'); },
+
+    // ---- score sheet rows ----
     row(title) { return page.locator('.row-item', { has: page.locator('.row-title', { hasText: title }) }); },
     async cell(title) { return (await api.row(title).locator('.row-score').textContent()).trim(); },
     async open(title) { await api.row(title).click(); await page.waitForSelector('#scoreModal.open'); },
-    // Upper section: pick how many dice showed that face.
+    // Upper/face boxes: pick how many dice showed that face.
     async upper(title, count) { await api.open(title); await page.click(`#modalBody .die-btn:nth-child(${count + 1})`); },
-    // Fixed categories (Full House, straights, Yahtzee): tap the score button.
-    async fixed(title) { await api.open(title); await page.click('#modalBody button.primary'); },
-    // Sum categories (3/4 of a kind, Chance): type a number and Save.
+    // Option boxes (fixed values; Generala has two — normal and servida).
+    async fixed(title, optionIndex = 0) {
+      await api.open(title);
+      await page.click(`#modalBody .quick-options button:nth-child(${optionIndex + 1})`);
+    },
+    // Free-entry boxes: type a number and Save.
     async sum(title, value) { await api.open(title); await page.fill('#modalBody input', String(value)); await page.click('#modalBody button.primary'); },
     async scratch(title) { await api.open(title); await page.click('#btnZeroScore'); },
     async clear(title) { await api.open(title); await page.click('#btnClearScore'); },
+    // Tapping a gated box shows a toast and never opens the sheet.
+    async tapRow(title) { await api.row(title).click(); },
+
+    // ---- section + extras readouts (engine id scheme) ----
+    async sectionCount(id) { return api.text(`#section-${id}-count`); },
+    async sectionLabel(id) { return api.text(`#section-${id}-label`); },
+    async sectionSubtotal(id) { return api.text(`#section-${id}-subtotal`); },
+    async sectionBonus(id) { return api.text(`#section-${id}-bonus`); },
+    async sectionProgress(id) { return api.text(`#section-${id}-progress`); },
+    async extraCount(id) { return api.text(`#extra-${id}-count`); },
+    async extraPlus(id) { await page.click(`#extra-${id}-plus`); },
+    async extraMinus(id) { await page.click(`#extra-${id}-minus`); },
+
+    // ---- general ----
     async total() { return Number(await page.textContent('#grandTotalVal')); },
     async text(sel) { return (await page.textContent(sel)).trim(); },
+    async toast() { return api.text('#toast'); },
     async activePlayer() { return api.text('#activePlayerLabel'); },
     async selectPlayer(i) { await page.click(`#playersBar .player-tab:nth-child(${i + 1})`); },
     async playerCount() { return page.locator('#playersBar .player-tab').count(); },
@@ -90,14 +109,17 @@ function makeApi(page, extra) {
       return cards.map(s => s.replace(/\s+/g, ' ').trim());
     },
     async standings() {
-      await page.click('#btnLeaderboard');
-      // Each row is "<medal + name>" and "<points>" in two parts; join with a space.
+      // Each row is "<medal + name>" and "<points>" in two parts.
+      const open = await page.$('#leaderboardModal.open');
+      if (!open) await page.click('#btnLeaderboard');
       const rows = await page.$$eval('#leaderboardList .leaderboard-item',
         items => items.map(i => [...i.children].map(c => c.textContent.trim()).join(' ')));
       await page.click('#btnCloseLeaderboard');
       return rows.map(s => s.replace(/\s+/g, ' ').trim());
     },
-    // Fill a player's whole card quickly with a fixed set of scores.
+    async gameOverOpen() { return page.isVisible('#leaderboardModal.open'); },
+
+    // Fill a Yahtzee card quickly with a fixed set of scores.
     async fillCard(p = {}) {
       const s = { ones: 3, twos: 3, threes: 3, fours: 3, fives: 3, sixes: 3, tk: 20, fk: 20, ch: 20, ...p };
       await api.upper('Ones', s.ones); await api.upper('Twos', s.twos); await api.upper('Threes', s.threes);

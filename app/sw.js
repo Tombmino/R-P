@@ -1,6 +1,6 @@
 // Offline cache for Ronda y Punto.
 // Bump CACHE_VERSION whenever any asset changes so old caches are evicted.
-const CACHE_VERSION = 'ryp-v0.6.1';
+const CACHE_VERSION = 'ryp-v0.7.0';
 const ASSETS = [
   './',
   './index.html',
@@ -15,6 +15,9 @@ const ASSETS = [
   './core/config.js',
   './core/storage.js',
   './core/ui.js',
+  './core/i18n.js',
+  './core/standings.js',
+  './core/scorecard.js',
   './games/yahtzee.js'
 ];
 
