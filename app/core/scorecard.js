@@ -51,6 +51,7 @@
 import { loadJSON, saveJSON } from './storage.js';
 import { showToast, escapeHtml } from './ui.js';
 import { mergeStrings, LANG_LABEL } from './i18n.js';
+import { mountRules, RULES_MODAL_HTML } from './rules.js';
 import { rankPlayers, medalFor } from './standings.js';
 import { defaultColorFor, isValidColor, firstFreeColor, colorSwatchesHtml, applyPlayerColor, clearPlayerColor } from './colors.js';
 
@@ -308,7 +309,7 @@ export function mountScorecard(container, def) {
           </div>
           <div class="actions">
             <button id="btnHome" title="Inicio / Home">🏠</button>
-            <button id="btnUndo" title="Deshacer / Undo" disabled>↩️</button>
+            <button id="btnRules" title="Reglas / Rules">📖</button>
             <button id="btnHistory" title="Historial / History">📜</button>
             <button id="btnLang" class="lang-btn" title="Idioma / Language"></button>
             <button id="btnTheme" title="Tema / Theme">🌙</button>
@@ -371,6 +372,8 @@ export function mountScorecard(container, def) {
         </div>
       </div>
     </div>
+
+    ${RULES_MODAL_HTML}
 
     <div id="playerModal" class="modal-backdrop" role="dialog" aria-modal="true">
       <div class="modal-sheet">
@@ -446,9 +449,9 @@ export function mountScorecard(container, def) {
     setText('btnClearScore', dict.clearEmpty);
     $('chkAutoAdvance').checked = state.autoAdvance;
 
-    const canUndo = undoStack.length > 0;
-    $('btnUndo').disabled = !canUndo;
-    $('btnDockUndo').disabled = !canUndo;
+    // Undo lives in the dock only: always visible, labelled, and it
+    // keeps the header to one line on a small phone.
+    $('btnDockUndo').disabled = undoStack.length === 0;
 
     const turnPlayer = state.players[state.turnIndex];
     const viewPlayer = state.players[state.viewIndex];
@@ -816,8 +819,9 @@ export function mountScorecard(container, def) {
     });
   });
 
+  const rules = mountRules(def, () => state.lang, () => t());
+
   $('btnHome').addEventListener('click', () => { location.hash = '#/'; });
-  $('btnUndo').addEventListener('click', performUndo);
   $('btnDockUndo').addEventListener('click', performUndo);
 
   $('chkAutoAdvance').addEventListener('change', (e) => {
@@ -853,6 +857,7 @@ export function mountScorecard(container, def) {
     });
     saveState();
     render();
+    rules.refresh();
   });
 
   $('btnTheme').addEventListener('click', () => {

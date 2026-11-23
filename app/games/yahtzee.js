@@ -73,6 +73,32 @@ const strings = {
 const MAX_DICE_SUM = 30;
 const SUM_PRESETS = [10, 15, 18, 20, 22, 24, 25, 28, 30];
 
+// Written from scratch. Scoring values are not repeated here — the
+// rules sheet derives the table from the categories below, so it can
+// never fall out of step with what the app actually scores.
+const rules = {
+  es: {
+    howItWorks: 'Cada turno tiras los cinco dados hasta tres veces, apartando los que quieras entre tirada y tirada. Al terminar, anotas el resultado en una de las trece casillas de tu hoja. Cada casilla se usa una sola vez, así que a veces toca tachar una con cero. Cuando todos llenan sus trece casillas, gana quien más suma.',
+    houseRules: [
+      'Bono superior: 63 puntos o más entre las seis casillas de arriba dan 35 puntos extra.',
+      'Yahtzee extra: cada Yahtzee posterior al primero vale 100 puntos más, siempre que la casilla de Yahtzee tenga 50 anotados.',
+      'Si la casilla de Yahtzee está tachada con cero, los Yahtzee siguientes no dan bono.',
+      'Las casillas de suma libre admiten como máximo 30, que es lo máximo que pueden sumar cinco dados.'
+    ],
+    note: 'La app no tira los dados ni valida las jugadas: tiráis vosotros con dados de verdad y la app lleva la cuenta.'
+  },
+  en: {
+    howItWorks: 'On your turn you roll the five dice up to three times, keeping the ones you want between rolls. When you stop, you write the result into one of the thirteen boxes on your sheet. Each box is used once, so sometimes you have to cross one out for zero. When everyone has filled all thirteen, the highest total wins.',
+    houseRules: [
+      'Upper bonus: 63 or more across the top six boxes earns 35 extra points.',
+      'Extra Yahtzee: every Yahtzee after the first is worth 100 more, provided the Yahtzee box already holds 50.',
+      'If the Yahtzee box was crossed out for zero, later Yahtzees earn no bonus at all.',
+      'Free-entry boxes accept at most 30, which is the most five dice can add up to.'
+    ],
+    note: 'The app does not roll the dice or check your hands: you roll real dice and the app keeps the score.'
+  }
+};
+
 export const yahtzeeDef = {
   id: 'yahtzee',
   storageKey: 'yahtzee',
@@ -81,6 +107,7 @@ export const yahtzeeDef = {
   maxPlayers: 6,
   playerColors: true,
   strings,
+  rules,
   sections: [
     {
       id: 'upper',

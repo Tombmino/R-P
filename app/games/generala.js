@@ -82,6 +82,31 @@ const PLAY = (base) => ({
 
 const GENERALA_SERVIDA = 100;
 
+const rules = {
+  es: {
+    howItWorks: 'Cada turno tiras los cinco dados hasta tres veces, apartando los que quieras entre tirada y tirada. Anotas el resultado en una de las diez casillas. Si logras una jugada en la primera tirada, sin repetir ningún dado, es "servida" y vale el doble. Gana quien más suma al llenar la hoja, salvo que alguien saque una Generala servida: eso termina la partida en el acto.',
+    houseRules: [
+      'Servida (en la primera tirada, sin repetir dados) vale el doble.',
+      'Generala servida gana la partida al instante, aunque otro vaya ganando por puntos.',
+      'Doble Generala vale 100 y solo se puede anotar después de haber anotado una Generala.',
+      'Una Generala tachada con cero no habilita la Doble Generala.',
+      'No hay bono por la sección de números: eso es una regla del Yahtzee, no de la Generala.'
+    ],
+    note: 'La app no valida los dados, así que la variante de escalera que uséis (1-2-3-4-5 o 2-3-4-5-6, y si el 1 cierra como 6) la acordáis vosotros antes de empezar.'
+  },
+  en: {
+    howItWorks: 'On your turn you roll the five dice up to three times, keeping the ones you want between rolls, then write the result into one of the ten boxes. A hand made on the very first roll, with no dice re-rolled, is "servida" and scores double. Highest total wins once the sheet is full — unless somebody rolls a Generala servida, which ends the game on the spot.',
+    houseRules: [
+      'Servida (made on the first roll, nothing re-rolled) scores double.',
+      'A Generala servida wins outright, even if someone else is ahead on points.',
+      'Doble Generala is worth 100 and can only be scored after a Generala has been recorded.',
+      'A Generala crossed out for zero does not unlock Doble Generala.',
+      'There is no bonus for the numbers section: that is a Yahtzee rule, not a Generala one.'
+    ],
+    note: 'The app does not check the dice, so agree your Escalera variant before you start (1-2-3-4-5 or 2-3-4-5-6, and whether a 1 may close as a 6).'
+  }
+};
+
 export const generalaDef = {
   id: 'generala',
   storageKey: 'generala',
@@ -90,6 +115,7 @@ export const generalaDef = {
   maxPlayers: 6,
   playerColors: true,
   strings,
+  rules,
   sections: [
     {
       id: 'numbers',

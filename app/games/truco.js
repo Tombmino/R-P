@@ -84,12 +84,58 @@ function renderTotal(total) {
   );
 }
 
+const rules = {
+  es: {
+    howItWorks: 'Se juega a 30 puntos: los primeros 15 son las malas y los segundos 15 las buenas. La app no reparte cartas ni sigue las manos: cuando una mano termina, tocas el bando que la ganó y tocas cuánto valía. Los puntos se dibujan como palillos, en grupos de cinco, igual que sobre la mesa.',
+    scoring: [
+      { name: 'Mano ganada sin cantar truco', value: '1' },
+      { name: 'Truco', value: '2' },
+      { name: 'Retruco', value: '3' },
+      { name: 'Vale cuatro', value: '4' },
+      { name: 'Envido', value: '2' },
+      { name: 'Real envido', value: '3' },
+      { name: 'Falta envido', value: 'lo que falte para cerrar' },
+      { name: 'Flor', value: '3' },
+      { name: 'Contraflor', value: '6' },
+      { name: 'Contraflor al resto', value: 'lo que falte para cerrar' }
+    ],
+    houseRules: [
+      'Se juega a 30: 15 de malas y 15 de buenas.',
+      'El primero en llegar a 30 gana; no hay última ronda.',
+      'Los botones cubren del 1 al 6, que son los cantos habituales. La falta envido y la contraflor al resto se escriben a mano, porque valen lo que falte.'
+    ],
+    note: 'La flor se juega o no se juega según la casa. La app no cambia las cuentas: solo cambia qué valores salen, así que acordadlo antes de empezar.'
+  },
+  en: {
+    howItWorks: 'Played to 30 points: the first 15 are the malas, the second 15 the buenas. The app does not deal cards or follow the hands — when a hand finishes you tap the side that won and tap what it was worth. Points are drawn as toothpicks in groups of five, the way they are laid out on a table.',
+    scoring: [
+      { name: 'Hand won with no truco called', value: '1' },
+      { name: 'Truco', value: '2' },
+      { name: 'Retruco', value: '3' },
+      { name: 'Vale cuatro', value: '4' },
+      { name: 'Envido', value: '2' },
+      { name: 'Real envido', value: '3' },
+      { name: 'Falta envido', value: 'whatever is left to close' },
+      { name: 'Flor', value: '3' },
+      { name: 'Contraflor', value: '6' },
+      { name: 'Contraflor al resto', value: 'whatever is left to close' }
+    ],
+    houseRules: [
+      'Played to 30: 15 malas, then 15 buenas.',
+      'First side to 30 wins; there is no final round.',
+      'The buttons cover 1 to 6, which are the ordinary calls. Falta envido and contraflor al resto are typed in, because they are worth whatever is left.'
+    ],
+    note: 'Whether flor is played at all varies by house. It does not change the arithmetic here, only which values come up, so agree it before you start.'
+  }
+};
+
 export const trucoDef = {
   id: 'truco',
   storageKey: 'truco',
   version: 'v0.7',
   titleKey: 'gameTitle',
   strings,
+  rules,
   target: TARGET,
   // Two sides for pairs or a head-to-head; three for 1v1v1.
   minSides: 2,

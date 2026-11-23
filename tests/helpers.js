@@ -132,6 +132,19 @@ function makeApi(page, extra) {
     async tallySticks(i) { return api.sideRow(i).locator('.tally-stick').count(); },
     async hasMilestone(i) { return api.sideRow(i).locator('.milestone-chip').count(); },
 
+    // ---- rules sheet ----
+    async openRules() { await page.click('#btnRules'); await page.waitForSelector('#rulesModal.open'); },
+    async closeRules() { await page.click('#btnCloseRules'); },
+    async rulesText() { return (await page.textContent('#rulesBody')).replace(/\s+/g, ' ').trim(); },
+    async rulesRows() {
+      return page.$$eval('#rulesBody .rules-row',
+        rows => rows.map(r => [
+          r.querySelector('.rules-row-name').textContent.trim(),
+          r.querySelector('.rules-row-value').textContent.trim()
+        ]));
+    },
+    async rulesHouseLines() { return page.$$eval('#rulesBody .rules-list li', ls => ls.map(l => l.textContent.trim())); },
+
     // ---- general ----
     async total() { return Number(await page.textContent('#grandTotalVal')); },
     async text(sel) { return (await page.textContent(sel)).trim(); },

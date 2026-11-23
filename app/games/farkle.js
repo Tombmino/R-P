@@ -46,12 +46,60 @@ const strings = {
   }
 };
 
+const rules = {
+  es: {
+    howItWorks: 'Tiras los seis dados. Apartas los que puntúan y decides: vuelves a tirar los que quedan para sumar más, o guardas lo acumulado y pasas. Si una tirada no puntúa nada, haces "farkle" y pierdes todo lo acumulado en ese turno. El primero en pasar de 10.000 da pie a una última ronda para los demás.',
+    scoring: [
+      { name: 'Un 1 suelto', value: '100' },
+      { name: 'Un 5 suelto', value: '50' },
+      { name: 'Tres unos', value: '1.000' },
+      { name: 'Tres iguales (cualquier otro número)', value: 'ese número × 100' },
+      { name: 'Cuatro iguales', value: '1.000' },
+      { name: 'Cinco iguales', value: '2.000' },
+      { name: 'Seis iguales', value: '3.000' },
+      { name: 'Escalera del 1 al 6', value: '1.500' },
+      { name: 'Tres parejas', value: '1.500' },
+      { name: 'Tirada sin puntos (farkle)', value: 'pierdes el turno' }
+    ],
+    houseRules: [
+      'Se juega a 10.000 puntos.',
+      'Para abrir hace falta guardar 500 o más en un solo turno.',
+      'Tres farkles seguidos cuestan 1.000 puntos.',
+      'Última ronda: cuando alguien pasa de 10.000, el resto tiene un turno más para adelantarle.'
+    ],
+    note: 'Las combinaciones de Farkle cambian mucho de casa en casa. Estas son las más habituales; acordadlas antes de empezar si alguien juega distinto.'
+  },
+  en: {
+    howItWorks: 'Roll all six dice. Set aside the ones that score, then choose: roll the rest to add more, or bank what you have and pass. If a roll scores nothing you have farkled, and everything built up that turn is gone. The first player past 10,000 gives everyone else one last turn.',
+    scoring: [
+      { name: 'A single 1', value: '100' },
+      { name: 'A single 5', value: '50' },
+      { name: 'Three ones', value: '1,000' },
+      { name: 'Three of a kind (any other number)', value: 'that number × 100' },
+      { name: 'Four of a kind', value: '1,000' },
+      { name: 'Five of a kind', value: '2,000' },
+      { name: 'Six of a kind', value: '3,000' },
+      { name: 'A run of 1 to 6', value: '1,500' },
+      { name: 'Three pairs', value: '1,500' },
+      { name: 'A roll that scores nothing (farkle)', value: 'lose the turn' }
+    ],
+    houseRules: [
+      'Played to 10,000 points.',
+      'You must bank 500 or more in a single turn to get on the board.',
+      'Three farkles in a row costs 1,000 points.',
+      'Final round: once someone passes 10,000, everyone else gets one more turn to overtake.'
+    ],
+    note: 'Farkle combinations vary a lot from house to house. These are the common ones — agree them before you start if anyone plays differently.'
+  }
+};
+
 export const farkleDef = {
   id: 'farkle',
   storageKey: 'farkle',
   version: 'v0.7',
   titleKey: 'gameTitle',
   strings,
+  rules,
   target: TARGET,
   minSides: 2,
   // Six, to match the six player colours one-to-one.
