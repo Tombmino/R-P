@@ -104,6 +104,31 @@ function makeApi(page, extra) {
     async extraPlus(id) { await page.click(`#extra-${id}-plus`); },
     async extraMinus(id) { await page.click(`#extra-${id}-minus`); },
 
+    // ---- running-total games (Farkle, Truco) ----
+    async pending() { return Number(await api.text('#pendingVal')); },
+    async addPreset(v) { await page.click(`#presetGrid [data-add="${v}"]`); },
+    async typeAmount(v) { await page.fill('#typedAmount', String(v)); await page.click('#btnAddTyped'); },
+    async action(id) { await page.click(`#action-${id}`); },
+    sideRow(i) { return page.locator('#sidesList .side-row').nth(i); },
+    async sideCount() { return page.locator('#sidesList .side-row').count(); },
+    async sideTotal(i) {
+      const txt = await api.sideRow(i).locator('.side-total-num, .tally-num').first().textContent();
+      return Number(txt.trim());
+    },
+    async sideName(i) { return (await api.sideRow(i).locator('.row-title').textContent()).trim(); },
+    async turnChips(i) { return api.sideRow(i).locator('.turn-chip').allTextContents(); },
+    async activeSide() {
+      const n = await api.sideCount();
+      for (let i = 0; i < n; i++) {
+        const cls = await api.sideRow(i).getAttribute('class');
+        if (cls.includes('side-active')) return i;
+      }
+      return -1;
+    },
+    async selectSide(i) { await api.sideRow(i).click(); },
+    async tallySticks(i) { return api.sideRow(i).locator('.tally-stick').count(); },
+    async hasMilestone(i) { return api.sideRow(i).locator('.milestone-chip').count(); },
+
     // ---- general ----
     async total() { return Number(await page.textContent('#grandTotalVal')); },
     async text(sel) { return (await page.textContent(sel)).trim(); },

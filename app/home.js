@@ -10,8 +10,8 @@ const GAMES = [
     desc: 'The classic 13-box score sheet.' },
   { id: 'generala', name: 'Generala', kind: 'dice',  href: '#/generala',
     desc: '10 boxes, servida bonuses, instant win.' },
-  { id: 'farkle',   name: 'Farkle',   kind: 'dice',  href: null,
-    desc: 'Push your luck and bank your points. Coming soon.' },
+  { id: 'farkle',   name: 'Farkle',   kind: 'dice',  href: '#/farkle',
+    desc: 'Push your luck, then bank it.' },
   { id: 'truco',    name: 'Truco',    kind: 'cards', href: null,
     desc: 'Count to 30 on toothpicks. Coming soon.' }
 ];

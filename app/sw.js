@@ -1,6 +1,6 @@
 // Offline cache for Ronda y Punto.
 // Bump CACHE_VERSION whenever any asset changes so old caches are evicted.
-const CACHE_VERSION = 'ryp-v0.7.0';
+const CACHE_VERSION = 'ryp-v0.7.1';
 const ASSETS = [
   './',
   './index.html',
@@ -18,8 +18,10 @@ const ASSETS = [
   './core/i18n.js',
   './core/standings.js',
   './core/scorecard.js',
+  './core/running-total.js',
   './games/yahtzee.js',
-  './games/generala.js'
+  './games/generala.js',
+  './games/farkle.js'
 ];
 
 self.addEventListener('install', (event) => {

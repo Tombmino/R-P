@@ -4,6 +4,7 @@
 import { renderHome } from './home.js';
 import { renderYahtzee } from './games/yahtzee.js';
 import { renderGenerala } from './games/generala.js';
+import { renderFarkle } from './games/farkle.js';
 
 // --- Service worker ----------------------------------------------------
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
@@ -44,7 +45,8 @@ const ROUTES = {
   '':           { id: null,        render: renderHome },
   '#/':         { id: null,        render: renderHome },
   '#/yahtzee':  { id: 'yahtzee',   render: renderYahtzee },
-  '#/generala': { id: 'generala',  render: renderGenerala }
+  '#/generala': { id: 'generala',  render: renderGenerala },
+  '#/farkle':   { id: 'farkle',    render: renderFarkle }
 };
 
 // Each game gets one accent colour (see styles.css) so two score sheets

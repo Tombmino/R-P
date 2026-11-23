@@ -769,3 +769,197 @@ input[type="number"], input[type="text"] {
   padding: 22px 12px;
   font-size: 0.9rem;
 }
+
+/* ---------- Running-total games (Farkle, Truco) ---------- */
+
+.side-row {
+  gap: 12px;
+}
+
+.side-row.side-active {
+  background: var(--accent-soft);
+  border-left: 4px solid var(--accent);
+}
+
+.side-total {
+  min-width: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.side-total-num {
+  font-size: 1.3rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.side-total-lead .side-total-num {
+  color: var(--accent);
+}
+
+.milestone-chip {
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  vertical-align: middle;
+}
+
+.turn-log {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 3px;
+}
+
+.turn-chip {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 0.72rem;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.turn-chip-farkle {
+  background: var(--danger-soft);
+  border-color: rgba(220, 38, 38, 0.35);
+  color: var(--danger);
+}
+
+.turn-chip-penalty {
+  background: var(--warning-soft);
+  border-color: rgba(217, 119, 6, 0.35);
+  color: var(--warning);
+}
+
+.entry-body {
+  padding: 12px 14px 14px;
+}
+
+.pending-box {
+  text-align: center;
+  padding: 10px 12px 12px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+}
+
+.pending-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.pending-value {
+  font-size: 2.1rem;
+  font-weight: 900;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+/* Farkle is played with red dice, so its score chips are red. */
+.preset-chip {
+  padding: 14px 4px;
+  font-size: 1rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+body.game-farkle .preset-chip {
+  background: var(--danger-soft);
+  border-color: rgba(220, 38, 38, 0.35);
+  color: var(--danger);
+}
+
+body.game-farkle.dark .preset-chip {
+  border-color: rgba(248, 113, 113, 0.4);
+}
+
+.action-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.action-btn {
+  padding: 15px 8px;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+/* ---------- Truco: toothpick tally ----------
+   Points are drawn as palillos the way they are laid out on a table:
+   groups of five, four uprights crossed by a diagonal. */
+
+.tally {
+  display: flex;
+  align-items: flex-end;
+  gap: 7px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.tally-group {
+  position: relative;
+  display: flex;
+  gap: 3px;
+  height: 26px;
+  align-items: flex-end;
+}
+
+.tally-stick {
+  width: 3px;
+  height: 24px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.tally-group.of-five .tally-stick:nth-child(5) {
+  position: absolute;
+  left: -2px;
+  top: 1px;
+  width: 26px;
+  height: 3px;
+  transform: rotate(28deg);
+  transform-origin: left center;
+}
+
+.tally-num {
+  font-size: 1.1rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  margin-left: 6px;
+  color: var(--text);
+}
+
+.side-total-lead .tally-num {
+  color: var(--accent);
+}
+
+.tally-split {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border);
+  margin: 0 3px;
+}
