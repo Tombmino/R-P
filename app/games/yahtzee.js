@@ -1,13 +1,29 @@
 // Yahtzee scorekeeper. Module boundary: the whole UI, its state and
-// listeners live in here, mounted by renderYahtzee(container). Scoring
-// rules, strings and DOM wiring are unchanged from v0.4; only the file
-// layout (module + core helpers + neutral storage keys) is new.
+// listeners live in here, mounted by renderYahtzee(container).
+//
+// Behaviour changes in this file vs v0.5.0:
+//   BUG 1: separate "whose turn" (turnIndex) from "which player's card is
+//          being viewed" (viewIndex). Correcting a past box no longer
+//          changes whose turn it is.
+//   BUG 2: archiveCurrentGame pushes its undo snapshot BEFORE touching
+//          scores or history, and the snapshot now includes history so
+//          undoing a save also removes the history entry.
+//   BUG 3: free-entry score input is capped at 30 (Yahtzee's max sum).
+//   BUG 4: the Extra Yahtzee + button only works when the Yahtzee box
+//          holds 50; otherwise it shows a toast instead of adding bonus.
+//   BUG 5: when every player has filled all 13 boxes, the standings
+//          sheet opens automatically.
+//   BUG 6: ties for first place show 🥇 for every tied player, and the
+//          history winner line names each one.
+//   KNOWN ISSUE: the undo stack is persisted to storage, so undo still
+//          works after the app is closed and reopened.
 
 import { loadJSON, saveJSON } from '../core/storage.js';
 import { showToast, escapeHtml } from '../core/ui.js';
 
 const STATE_KEY = 'yahtzee.state';
 const HISTORY_KEY = 'yahtzee.history';
+const UNDO_KEY = 'yahtzee.undo';
 const MAX_UNDO = 25;
 
 // ---------- Translations ----------
@@ -19,6 +35,7 @@ const I18N = {
     installBtn: 'Instalar',
     reset: 'Reiniciar',
     activePlayer: 'Jugador activo:',
+    viewingNote: (name) => `Viendo a ${name}`,
     rename: 'Renombrar',
     addPlayer: '+ Jugador',
     defaultPlayerPrefix: 'Jugador',
@@ -37,6 +54,7 @@ const I18N = {
     grandTotal: 'Puntuación Total',
     leaderboardBtn: '🏆 Clasificación',
     leaderboardTitle: '🏆 Clasificación de la partida',
+    gameOverTitle: '🏁 ¡Partida terminada!',
     historyTitle: '📜 Historial de partidas',
     clearHistory: 'Borrar',
     emptyHistory: 'Aún no hay partidas guardadas en el historial.',
@@ -48,6 +66,8 @@ const I18N = {
     save: 'Guardar',
     scratchZero: 'Tachar (0 pts)',
     clearEmpty: 'Dejar vacío',
+    maxScoreToast: 'Máximo 30 puntos',
+    needYahtzeeToast: 'Primero anota un Yahtzee de 50 pts',
     maxPlayersAlert: 'Máximo 6 jugadores en esta versión.',
     renamePrompt: 'Nuevo nombre para el jugador:',
     deleteConfirm: (name) => `¿Eliminar a "${name}"?`,
@@ -80,6 +100,7 @@ const I18N = {
     installBtn: 'Install',
     reset: 'Reset',
     activePlayer: 'Active player:',
+    viewingNote: (name) => `Viewing ${name}`,
     rename: 'Rename',
     addPlayer: '+ Player',
     defaultPlayerPrefix: 'Player',
@@ -98,6 +119,7 @@ const I18N = {
     grandTotal: 'Grand Total',
     leaderboardBtn: '🏆 Standings',
     leaderboardTitle: '🏆 Game Standings',
+    gameOverTitle: '🏁 Game over!',
     historyTitle: '📜 Match History',
     clearHistory: 'Clear',
     emptyHistory: 'No saved games in history yet.',
@@ -109,6 +131,8 @@ const I18N = {
     save: 'Save',
     scratchZero: 'Scratch (0 pts)',
     clearEmpty: 'Clear cell',
+    maxScoreToast: 'Max 30 points',
+    needYahtzeeToast: 'Score a Yahtzee (50) first',
     maxPlayersAlert: 'Maximum 6 players in this version.',
     renamePrompt: 'New name for player:',
     deleteConfirm: (name) => `Remove "${name}"?`,
@@ -158,6 +182,9 @@ const LOWER_CATEGORIES = [
   { id: 'chance', type: 'sum' }
 ];
 
+const ALL_CATEGORIES = [...UPPER_CATEGORIES, ...LOWER_CATEGORIES];
+const SUM_INPUT_MAX = 30;
+
 // ---------- State ----------
 
 let state;
@@ -169,7 +196,7 @@ function t() { return I18N[state.lang] || I18N.es; }
 
 function createEmptyScores() {
   const scores = {};
-  [...UPPER_CATEGORIES, ...LOWER_CATEGORIES].forEach(c => { scores[c.id] = null; });
+  ALL_CATEGORIES.forEach(c => { scores[c.id] = null; });
   return scores;
 }
 
@@ -187,7 +214,8 @@ function defaultState() {
     lang: 'es',
     dark: false,
     autoAdvance: true,
-    activeIndex: 0,
+    turnIndex: 0,    // whose turn it is (independent of what you're viewing)
+    viewIndex: 0,    // whose card is on screen (defaults to turnIndex)
     players: [createPlayer('Jugador 1'), createPlayer('Jugador 2')]
   };
 }
@@ -197,11 +225,18 @@ function loadState() {
   if (!parsed || !Array.isArray(parsed.players) || parsed.players.length === 0) {
     return defaultState();
   }
+  // Pre-v0.6 saved states had activeIndex meaning both "turn" and "view".
+  // Treat that single value as both for a seamless upgrade.
+  const legacyIndex = typeof parsed.activeIndex === 'number' ? parsed.activeIndex : 0;
+  const rawTurn = typeof parsed.turnIndex === 'number' ? parsed.turnIndex : legacyIndex;
+  const rawView = typeof parsed.viewIndex === 'number' ? parsed.viewIndex : rawTurn;
+  const clamp = (n) => Math.min(Math.max(0, n), parsed.players.length - 1);
   return {
     lang: parsed.lang === 'en' ? 'en' : 'es',
     dark: Boolean(parsed.dark),
     autoAdvance: parsed.autoAdvance !== undefined ? Boolean(parsed.autoAdvance) : true,
-    activeIndex: Math.min(Math.max(0, parsed.activeIndex || 0), parsed.players.length - 1),
+    turnIndex: clamp(rawTurn),
+    viewIndex: clamp(rawView),
     players: parsed.players
   };
 }
@@ -210,26 +245,53 @@ function saveState() { saveJSON(STATE_KEY, state); }
 
 function loadHistory() {
   const parsed = loadJSON(HISTORY_KEY, []);
-  return Array.isArray(parsed) ? parsed : [];
+  if (!Array.isArray(parsed)) return [];
+  // Normalise old entries that only have `winner` (singular) into the
+  // new `winners` (array) shape used by tied-winner handling.
+  return parsed.map(e => {
+    if (e.winners) return e;
+    if (e.winner) return { ...e, winners: [e.winner] };
+    return e;
+  });
 }
 
 function saveHistory() { saveJSON(HISTORY_KEY, history); }
 
+function loadUndoStack() {
+  const parsed = loadJSON(UNDO_KEY, []);
+  return Array.isArray(parsed) ? parsed : [];
+}
+
+function saveUndoStack() { saveJSON(UNDO_KEY, undoStack); }
+
+// Undo snapshots now include history and viewIndex, so undoing a saved
+// game also removes the entry it added and restores what the user was
+// looking at.
 function pushUndoSnapshot() {
   const snapshot = JSON.stringify({
-    activeIndex: state.activeIndex,
-    players: state.players
+    turnIndex: state.turnIndex,
+    viewIndex: state.viewIndex,
+    players: state.players,
+    history
   });
   undoStack.push(snapshot);
   if (undoStack.length > MAX_UNDO) undoStack.shift();
+  saveUndoStack();
 }
 
 function performUndo() {
   if (undoStack.length === 0) return;
   const prev = JSON.parse(undoStack.pop());
   state.players = prev.players;
-  state.activeIndex = Math.min(Math.max(0, prev.activeIndex), state.players.length - 1);
+  const clamp = (n) => Math.min(Math.max(0, n), state.players.length - 1);
+  state.turnIndex = clamp(prev.turnIndex ?? 0);
+  state.viewIndex = clamp(prev.viewIndex ?? state.turnIndex);
+  if (Array.isArray(prev.history)) {
+    history = prev.history;
+    saveHistory();
+  }
   saveState();
+  saveUndoStack();
   render();
   showToast(t().toastUndone);
 }
@@ -253,6 +315,37 @@ function calcPlayerTotals(player) {
   return { upperSum, upperBonus, lowerSum, extraBonus, grandTotal, upperFilled, lowerFilled };
 }
 
+function cardIsFull(player) {
+  return ALL_CATEGORIES.every(c => player.scores[c.id] !== null);
+}
+
+function isGameOver() {
+  return state.players.length > 0 && state.players.every(cardIsFull);
+}
+
+// Rank players for standings using "competition ranking" (1-1-3 on a tie).
+// Special case: if nobody has scored yet (everyone's at 0, usually right
+// after a reset), fall back to purely positional ranking so the top of
+// the sheet still shows 🥇 / 🥈 instead of marking every player as a
+// joint winner of nothing.
+// Returns [{ name, total, rank }], sorted highest first.
+function rankedStandings() {
+  const ranked = state.players
+    .map(p => ({ name: p.name, total: calcPlayerTotals(p).grandTotal }))
+    .sort((a, b) => b.total - a.total);
+  const nobodyScored = ranked.length > 0 && ranked[0].total === 0;
+  let currentRank = 1;
+  ranked.forEach((entry, idx) => {
+    if (idx > 0 && entry.total < ranked[idx - 1].total) currentRank = idx + 1;
+    entry.rank = nobodyScored ? (idx + 1) : currentRank;
+  });
+  return ranked;
+}
+
+function medalFor(rank) {
+  return rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
+}
+
 // ---------- HTML template ----------
 
 const TEMPLATE = `
@@ -266,7 +359,7 @@ const TEMPLATE = `
       <div class="top-bar">
         <div class="brand">
           <h1>Yahtzee</h1>
-          <span class="badge">v0.5</span>
+          <span class="badge">v0.6</span>
         </div>
         <div class="actions">
           <button id="btnUndo" title="Deshacer / Undo" disabled>↩️</button>
@@ -282,6 +375,7 @@ const TEMPLATE = `
       <div class="player-controls">
         <div>
           <span id="lblActivePlayer">Jugador activo:</span> <strong id="activePlayerLabel">-</strong>
+          <span id="viewingNote" class="row-desc" style="display:none; margin-left:6px;"></span>
         </div>
         <div style="display:flex; gap:6px;">
           <button id="btnRenamePlayer">Renombrar</button>
@@ -433,14 +527,24 @@ function render() {
   document.getElementById('lblExtraDesc').textContent = dict.extraDesc;
   document.getElementById('lblGrandTotal').textContent = dict.grandTotal;
   document.getElementById('btnLeaderboard').textContent = dict.leaderboardBtn;
-  document.getElementById('lblLeaderboardTitle').textContent = dict.leaderboardTitle;
   document.getElementById('lblHistoryTitle').textContent = dict.historyTitle;
   document.getElementById('btnClearHistory').textContent = dict.clearHistory;
   document.getElementById('btnZeroScore').textContent = dict.scratchZero;
   document.getElementById('btnClearScore').textContent = dict.clearEmpty;
 
-  const activePlayer = state.players[state.activeIndex];
-  document.getElementById('activePlayerLabel').textContent = activePlayer.name;
+  // Label shows whose TURN it is. If the user is looking at someone
+  // else's card, add a small "Viewing X" hint next to the label.
+  const turnPlayer = state.players[state.turnIndex];
+  const viewPlayer = state.players[state.viewIndex];
+  document.getElementById('activePlayerLabel').textContent = turnPlayer.name;
+  const viewingNote = document.getElementById('viewingNote');
+  if (state.viewIndex !== state.turnIndex) {
+    viewingNote.textContent = dict.viewingNote(viewPlayer.name);
+    viewingNote.style.display = '';
+  } else {
+    viewingNote.textContent = '';
+    viewingNote.style.display = 'none';
+  }
   document.getElementById('btnRemovePlayer').disabled = state.players.length <= 1;
 
   const playersBar = document.getElementById('playersBar');
@@ -449,13 +553,13 @@ function render() {
     const totals = calcPlayerTotals(p);
     const tab = document.createElement('button');
     tab.type = 'button';
-    tab.className = 'player-tab' + (idx === state.activeIndex ? ' active' : '');
+    tab.className = 'player-tab' + (idx === state.viewIndex ? ' active' : '');
     tab.innerHTML = `
       <span class="p-name">${escapeHtml(p.name)}</span>
       <span class="p-score">${totals.grandTotal}</span>
     `;
     tab.addEventListener('click', () => {
-      state.activeIndex = idx;
+      state.viewIndex = idx;
       saveState();
       render();
     });
@@ -465,10 +569,10 @@ function render() {
   const upperRows = document.getElementById('upperRows');
   upperRows.innerHTML = '';
   UPPER_CATEGORIES.forEach(cat => {
-    upperRows.appendChild(buildCategoryRow(cat, activePlayer.scores[cat.id]));
+    upperRows.appendChild(buildCategoryRow(cat, viewPlayer.scores[cat.id]));
   });
 
-  const totals = calcPlayerTotals(activePlayer);
+  const totals = calcPlayerTotals(viewPlayer);
   document.getElementById('upperCountBadge').textContent = `${totals.upperFilled} / 6`;
   document.getElementById('upperSubtotalVal').textContent = totals.upperSum;
 
@@ -483,11 +587,11 @@ function render() {
   const lowerRows = document.getElementById('lowerRows');
   lowerRows.innerHTML = '';
   LOWER_CATEGORIES.forEach(cat => {
-    lowerRows.appendChild(buildCategoryRow(cat, activePlayer.scores[cat.id]));
+    lowerRows.appendChild(buildCategoryRow(cat, viewPlayer.scores[cat.id]));
   });
 
   document.getElementById('lowerCountBadge').textContent = `${totals.lowerFilled} / 7`;
-  document.getElementById('extraYahtzeeCount').textContent = activePlayer.extraYahtzees || 0;
+  document.getElementById('extraYahtzeeCount').textContent = viewPlayer.extraYahtzees || 0;
   document.getElementById('grandTotalVal').textContent = totals.grandTotal;
 }
 
@@ -520,7 +624,7 @@ function openScoreModal(cat) {
   const dict = t();
   const catText = dict.categories[cat.id];
   editingCategory = cat;
-  const player = state.players[state.activeIndex];
+  const player = state.players[state.viewIndex];
   const currentVal = player.scores[cat.id];
 
   document.getElementById('modalTitle').textContent = catText.name;
@@ -562,7 +666,7 @@ function openScoreModal(cat) {
     const numInput = document.createElement('input');
     numInput.type = 'number';
     numInput.min = '0';
-    numInput.max = '30';
+    numInput.max = String(SUM_INPUT_MAX);
     numInput.placeholder = dict.inputPlaceholder;
     numInput.value = typeof currentVal === 'number' ? currentVal : '';
 
@@ -572,7 +676,9 @@ function openScoreModal(cat) {
     btnApply.textContent = dict.save;
     btnApply.addEventListener('click', () => {
       const parsed = parseInt(numInput.value, 10);
-      if (!Number.isNaN(parsed) && parsed >= 0) setCategoryScore(cat.id, parsed);
+      if (Number.isNaN(parsed) || parsed < 0) return;
+      if (parsed > SUM_INPUT_MAX) { showToast(t().maxScoreToast); return; }
+      setCategoryScore(cat.id, parsed);
     });
 
     inputRow.appendChild(numInput);
@@ -600,15 +706,20 @@ function closeScoreModal() {
   document.getElementById('scoreModal').classList.remove('open');
 }
 
+// Scoring writes to the player currently being viewed. The turn only
+// advances when the viewer IS the player whose turn it is, which is
+// almost always — the exception is correcting a past player's box.
 function setCategoryScore(catId, value) {
   pushUndoSnapshot();
-  const player = state.players[state.activeIndex];
+  const scoringForOwnTurn = state.viewIndex === state.turnIndex;
+  const player = state.players[state.viewIndex];
   player.scores[catId] = value;
 
   let advancedToName = null;
-  if (value !== null && state.autoAdvance && state.players.length > 1) {
-    state.activeIndex = (state.activeIndex + 1) % state.players.length;
-    advancedToName = state.players[state.activeIndex].name;
+  if (value !== null && scoringForOwnTurn && state.autoAdvance && state.players.length > 1) {
+    state.turnIndex = (state.turnIndex + 1) % state.players.length;
+    state.viewIndex = state.turnIndex;
+    advancedToName = state.players[state.turnIndex].name;
   }
 
   saveState();
@@ -616,19 +727,21 @@ function setCategoryScore(catId, value) {
   render();
 
   if (advancedToName) showToast(t().toastTurn(advancedToName));
+  if (isGameOver()) openLeaderboard({ gameOver: true });
 }
 
-function openLeaderboard() {
+function openLeaderboard({ gameOver = false } = {}) {
+  const dict = t();
+  document.getElementById('lblLeaderboardTitle').textContent =
+    gameOver ? dict.gameOverTitle : dict.leaderboardTitle;
+
   const list = document.getElementById('leaderboardList');
   list.innerHTML = '';
-  const ranked = state.players
-    .map(p => ({ name: p.name, total: calcPlayerTotals(p).grandTotal }))
-    .sort((a, b) => b.total - a.total);
-  ranked.forEach((entry, idx) => {
+  const ranked = rankedStandings();
+  ranked.forEach((entry) => {
     const div = document.createElement('div');
     div.className = 'leaderboard-item';
-    const medal = idx === 0 ? '🥇 ' : idx === 1 ? '🥈 ' : idx === 2 ? '🥉 ' : `#${idx + 1} `;
-    div.innerHTML = `<span>${medal}${escapeHtml(entry.name)}</span><span>${entry.total} pts</span>`;
+    div.innerHTML = `<span>${medalFor(entry.rank)} ${escapeHtml(entry.name)}</span><span>${entry.total} pts</span>`;
     list.appendChild(div);
   });
   document.getElementById('leaderboardModal').classList.add('open');
@@ -636,9 +749,7 @@ function openLeaderboard() {
 
 function archiveCurrentGame() {
   const dict = t();
-  const ranked = state.players
-    .map(p => ({ name: p.name, total: calcPlayerTotals(p).grandTotal }))
-    .sort((a, b) => b.total - a.total);
+  const ranked = rankedStandings();
 
   const hasAnyPoints = state.players.some(p =>
     Object.values(p.scores).some(v => v !== null) || (p.extraYahtzees || 0) > 0
@@ -646,24 +757,29 @@ function archiveCurrentGame() {
   if (!hasAnyPoints) { alert(dict.emptyGameAlert); return; }
   if (!confirm(dict.finishConfirm)) return;
 
+  // Snapshot FIRST, so undoing restores both the scores and removes
+  // the entry we're about to add to history (fix for bug 2).
+  pushUndoSnapshot();
+
+  const winners = ranked.filter(r => r.rank === 1);
   const entry = {
     id: 'g_' + Date.now(),
     date: new Date().toLocaleDateString(state.lang === 'es' ? 'es-ES' : 'en-US', {
       day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
     }),
-    winner: ranked[0],
+    winner: winners[0],        // kept for backward compatibility
+    winners,                   // all tied for first (new)
     standings: ranked
   };
-
   history.unshift(entry);
   if (history.length > 50) history.pop();
   saveHistory();
 
-  pushUndoSnapshot();
   state.players = state.players.map(p => ({
     ...p, scores: createEmptyScores(), extraYahtzees: 0
   }));
-  state.activeIndex = 0;
+  state.turnIndex = 0;
+  state.viewIndex = 0;
   saveState();
 
   document.getElementById('leaderboardModal').classList.remove('open');
@@ -683,7 +799,8 @@ function openHistoryModal() {
   } else {
     let best = { name: '-', total: -1 };
     history.forEach(g => {
-      if (g.winner && g.winner.total > best.total) best = g.winner;
+      const topWinner = (g.winners && g.winners[0]) || g.winner;
+      if (topWinner && topWinner.total > best.total) best = topWinner;
     });
     recordBanner.style.display = 'flex';
     recordBanner.innerHTML = `<span>${dict.recordLabel} ${escapeHtml(best.name)}</span><span>${best.total} pts</span>`;
@@ -691,15 +808,23 @@ function openHistoryModal() {
     history.forEach(g => {
       const card = document.createElement('div');
       card.className = 'history-card';
-      const chips = g.standings
-        .map((s, idx) => `<span class="history-chip">${idx === 0 ? '🥇' : `#${idx + 1}`} ${escapeHtml(s.name)}: ${s.total}</span>`)
+      const standings = g.standings || [];
+      const winners = g.winners || (g.winner ? [g.winner] : []);
+      const winnerNames = winners.map(w => escapeHtml(w.name)).join(' & ');
+      const winnerScore = winners.length > 0 ? winners[0].total : '';
+
+      const chips = standings
+        .map((s, idx) => {
+          const rank = typeof s.rank === 'number' ? s.rank : idx + 1;
+          return `<span class="history-chip">${medalFor(rank)} ${escapeHtml(s.name)}: ${s.total}</span>`;
+        })
         .join('');
       card.innerHTML = `
         <div class="history-card-top">
           <span>${escapeHtml(g.date)}</span>
-          <span>${g.standings.length} ${state.lang === 'es' ? 'jug.' : 'players'}</span>
+          <span>${standings.length} ${state.lang === 'es' ? 'jug.' : 'players'}</span>
         </div>
-        <div class="history-winner">🏆 ${escapeHtml(g.winner.name)} — ${g.winner.total} pts</div>
+        <div class="history-winner">🏆 ${winnerNames} — ${winnerScore} pts</div>
         <div class="history-players">${chips}</div>
       `;
       list.appendChild(card);
@@ -716,11 +841,11 @@ export function renderYahtzee(container) {
 
   state = loadState();
   history = loadHistory();
-  undoStack = [];
+  undoStack = loadUndoStack();     // persisted across reloads
   editingCategory = null;
 
-  // Install prompt: the shell owns the deferred event; we just wire the
-  // button here. Importing dynamically avoids a cycle with main.js.
+  // Install prompt: the shell owns the deferred event; we wire the
+  // button here. Dynamic import avoids a cycle with main.js.
   import('../main.js').then(({ installPromptAvailable, triggerInstallPrompt }) => {
     const btn = document.getElementById('btnInstallApp');
     if (btn) btn.addEventListener('click', async () => {
@@ -782,14 +907,16 @@ export function renderYahtzee(container) {
     pushUndoSnapshot();
     const nextNum = state.players.length + 1;
     state.players.push(createPlayer(`${dict.defaultPlayerPrefix} ${nextNum}`));
-    state.activeIndex = state.players.length - 1;
+    // New player becomes the active one (matches v0.5 behaviour).
+    state.turnIndex = state.players.length - 1;
+    state.viewIndex = state.turnIndex;
     saveState();
     render();
   });
 
   document.getElementById('btnRenamePlayer').addEventListener('click', () => {
     const dict = t();
-    const current = state.players[state.activeIndex];
+    const current = state.players[state.viewIndex];
     const nuevo = prompt(dict.renamePrompt, current.name);
     if (nuevo && nuevo.trim()) {
       pushUndoSnapshot();
@@ -802,17 +929,22 @@ export function renderYahtzee(container) {
   document.getElementById('btnRemovePlayer').addEventListener('click', () => {
     const dict = t();
     if (state.players.length <= 1) return;
-    const current = state.players[state.activeIndex];
+    const current = state.players[state.viewIndex];
     if (!confirm(dict.deleteConfirm(current.name))) return;
     pushUndoSnapshot();
-    state.players.splice(state.activeIndex, 1);
-    state.activeIndex = Math.max(0, state.activeIndex - 1);
+    const removed = state.viewIndex;
+    state.players.splice(removed, 1);
+    // Keep turnIndex pointing at the same player when possible.
+    if (state.turnIndex > removed) state.turnIndex -= 1;
+    else if (state.turnIndex === removed) state.turnIndex = Math.max(0, state.turnIndex - 1);
+    state.viewIndex = Math.max(0, Math.min(removed, state.players.length - 1));
+    state.turnIndex = Math.max(0, Math.min(state.turnIndex, state.players.length - 1));
     saveState();
     render();
   });
 
   document.getElementById('btnExtraMinus').addEventListener('click', () => {
-    const p = state.players[state.activeIndex];
+    const p = state.players[state.viewIndex];
     if ((p.extraYahtzees || 0) <= 0) return;
     pushUndoSnapshot();
     p.extraYahtzees = Math.max(0, (p.extraYahtzees || 0) - 1);
@@ -821,8 +953,12 @@ export function renderYahtzee(container) {
   });
 
   document.getElementById('btnExtraPlus').addEventListener('click', () => {
+    const p = state.players[state.viewIndex];
+    // Bonus is only awarded when the Yahtzee box holds 50. If it's
+    // empty, scratched or any other value, the tap shows a hint toast
+    // and leaves the counter alone.
+    if (p.scores.yahtzee !== 50) { showToast(t().needYahtzeeToast); return; }
     pushUndoSnapshot();
-    const p = state.players[state.activeIndex];
     p.extraYahtzees = (p.extraYahtzees || 0) + 1;
     saveState();
     render();
@@ -835,7 +971,8 @@ export function renderYahtzee(container) {
     state.players = state.players.map(p => ({
       ...p, scores: createEmptyScores(), extraYahtzees: 0
     }));
-    state.activeIndex = 0;
+    state.turnIndex = 0;
+    state.viewIndex = 0;
     saveState();
     render();
   });
@@ -852,7 +989,7 @@ export function renderYahtzee(container) {
     if (editingCategory) setCategoryScore(editingCategory.id, null);
   });
 
-  document.getElementById('btnLeaderboard').addEventListener('click', openLeaderboard);
+  document.getElementById('btnLeaderboard').addEventListener('click', () => openLeaderboard());
   document.getElementById('btnCloseLeaderboard').addEventListener('click', () => {
     document.getElementById('leaderboardModal').classList.remove('open');
   });

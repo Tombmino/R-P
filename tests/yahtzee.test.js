@@ -166,7 +166,9 @@ test('save game: adds to history and clears the board', () => withApp(async app 
   const h = await app.history();
   assert.equal(h.length, 1);
   assert.match(h[0], /🏆 Player 1 — 50 pts/);
-  assert.match(h[0], /#2 Player 2: 25/);
+  // Standings chips now use medals (🥇/🥈/🥉) instead of #N so the
+  // history card reads the same as the live leaderboard.
+  assert.match(h[0], /🥈 Player 2: 25/);
 }));
 
 test('save game with no scores is refused', () => withApp(async app => {
@@ -196,13 +198,16 @@ test('theme switch toggles dark mode', () => withApp(async app => {
 
 test('closing and reopening keeps scores, players, language, theme and turn', () => withApp(async app => {
   await app.rename('Ana');
-  await app.fixed('Yahtzee');
-  await app.selectPlayer(1);
+  await app.fixed('Yahtzee');          // Ana (view=turn=0) scores 50
+  await app.selectPlayer(1);           // start viewing P2 — turn stays with Ana
   await app.page.click('#btnTheme');
   await app.reload();
-  assert.equal(await app.activePlayer(), 'Player 2');
-  await app.selectPlayer(0);
+  // Turn stays with Ana because selectPlayer only moves the view.
   assert.equal(await app.activePlayer(), 'Ana');
+  // The card on screen should still be P2's (empty).
+  assert.equal(await app.cell('Yahtzee'), '—');
+  await app.selectPlayer(0);
+  assert.equal(await app.cell('Yahtzee'), '50');
   assert.equal(await app.total(), 50);
   assert.equal(await app.text('#btnLang'), 'EN 🇺🇸');
   assert.equal(await app.page.evaluate(() => document.body.classList.contains('dark')), true);
@@ -215,9 +220,11 @@ test('damaged saved data falls back to a new game instead of crashing', () => wi
   assert.equal(await app.total(), 0);
 }));
 
-// ---------- Known bugs (should fail until fixed) ----------
+// ---------- Previously-known bugs, now fixed ----------
+// These were marked { todo: 'KNOWN BUG N' } before the fix; the markers
+// are removed so they count as regular tests going forward.
 
-test('BUG 1: correcting an earlier player\'s box keeps the turn where it was', { todo: 'KNOWN BUG 1' }, () => withApp({ autoAdvance: true }, async app => {
+test('BUG 1 fix: correcting an earlier player\'s box keeps the turn where it was', () => withApp({ autoAdvance: true }, async app => {
   await app.addPlayer();                     // 3 players; adding makes Player 3 active
   await app.selectPlayer(0);
   await app.fixed('Yahtzee');                // P1 scores -> P2's turn
@@ -227,7 +234,7 @@ test('BUG 1: correcting an earlier player\'s box keeps the turn where it was', {
   assert.equal(await app.activePlayer(), 'Player 3', 'should still be Player 3\'s turn');
 }));
 
-test('BUG 2: undoing a saved game does not leave a duplicate in history', { todo: 'KNOWN BUG 2' }, () => withApp(async app => {
+test('BUG 2 fix: undoing a saved game does not leave a duplicate in history', () => withApp(async app => {
   await app.fixed('Yahtzee');
   await app.saveGame();
   await app.undo();                          // undo the save: scores come back
@@ -236,12 +243,12 @@ test('BUG 2: undoing a saved game does not leave a duplicate in history', { todo
   assert.equal((await app.history()).length, 1, 'the same game should appear once');
 }));
 
-test('BUG 3: typed scores above 30 are rejected for sum boxes', { todo: 'KNOWN BUG 3' }, () => withApp(async app => {
+test('BUG 3 fix: typed scores above 30 are rejected for sum boxes', () => withApp(async app => {
   await app.sum('Chance', 99);
   assert.notEqual(await app.cell('Chance'), '99');
 }));
 
-test('BUG 4: extra Yahtzee bonus needs a 50 in the Yahtzee box', { todo: 'KNOWN BUG 4' }, () => withApp(async app => {
+test('BUG 4 fix: extra Yahtzee bonus needs a 50 in the Yahtzee box', () => withApp(async app => {
   await app.page.click('#btnExtraPlus');      // Yahtzee box empty
   assert.equal(await app.total(), 0, 'not allowed with empty Yahtzee box');
   await app.scratch('Yahtzee');
@@ -249,14 +256,14 @@ test('BUG 4: extra Yahtzee bonus needs a 50 in the Yahtzee box', { todo: 'KNOWN 
   assert.equal(await app.total(), 0, 'not allowed with scratched Yahtzee box');
 }));
 
-test('BUG 5: the game ends and shows final standings when every card is full', { todo: 'KNOWN BUG 5' }, () => withApp(async app => {
+test('BUG 5 fix: the game ends and shows final standings when every card is full', () => withApp(async app => {
   await app.fillCard();
   await app.selectPlayer(1);
   await app.fillCard();
   assert.equal(await app.page.isVisible('#leaderboardModal.open'), true);
 }));
 
-test('BUG 6: a tie shows joint winners', { todo: 'KNOWN BUG 6' }, () => withApp(async app => {
+test('BUG 6 fix: a tie shows joint winners', () => withApp(async app => {
   await app.fixed('Yahtzee');
   await app.selectPlayer(1); await app.fixed('Yahtzee');
   const s = await app.standings();
@@ -266,7 +273,7 @@ test('BUG 6: a tie shows joint winners', { todo: 'KNOWN BUG 6' }, () => withApp(
   assert.match(h[0], /Player 1/); assert.match(h[0].split('—')[0], /Player 2/, 'history names both winners');
 }));
 
-test('KNOWN ISSUE: undo still works after the app is closed and reopened', { todo: 'KNOWN ISSUE (undo kept in memory only)' }, () => withApp(async app => {
+test('undo persists across reload', () => withApp(async app => {
   await app.fixed('Yahtzee');
   await app.reload();
   assert.equal(await app.page.isDisabled('#btnDockUndo'), false);
