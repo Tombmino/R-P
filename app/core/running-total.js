@@ -54,6 +54,7 @@ import { showToast, escapeHtml } from './ui.js';
 import { mergeStrings, LANG_LABEL } from './i18n.js';
 import { APP_VERSION } from './config.js';
 import { mountRules, RULES_MODAL_HTML } from './rules.js';
+import { SAVE_MODAL_HTML } from './ui.js';
 import { rankPlayers, medalFor } from './standings.js';
 import { defaultColorFor, isValidColor, firstFreeColor, colorSwatchesHtml, applyPlayerColor } from './colors.js';
 
@@ -368,6 +369,7 @@ export function mountRunningTotal(container, def) {
     </div>
 
     ${RULES_MODAL_HTML}
+    ${SAVE_MODAL_HTML}
 
     <div id="playerModal" class="modal-backdrop" role="dialog" aria-modal="true">
       <div class="modal-sheet">
@@ -554,10 +556,37 @@ export function mountRunningTotal(container, def) {
     $('leaderboardModal').classList.add('open');
   }
 
-  function archiveCurrentGame() {
+  function hasAnythingToSave() {
+    return state.sides.some(s => s.turns.length > 0);
+  }
+
+  // Filing a game: ask for an optional name, show what is being saved,
+  // then commit. Replaces the browser confirm() that used to guard this.
+  function openSaveModal() {
     const dict = t();
-    if (!state.sides.some(s => s.turns.length > 0)) { alert(dict.emptyGameAlert); return; }
-    if (!confirm(dict.finishConfirm)) return;
+    if (!hasAnythingToSave()) { showToast(dict.emptyGameAlert); return; }
+    setText('lblSaveTitle', dict.saveMatchTitle);
+    setText('lblMatchName', dict.matchNameLabel);
+    setText('lblFinalScore', dict.finalScore);
+    setText('btnConfirmSave', dict.saveToHistory);
+    const input = $('matchNameInput');
+    input.placeholder = dict.matchNamePlaceholder;
+    input.value = '';
+    $('saveSummary').innerHTML = standingsWithWinner().map(e =>
+      `<div class="rules-row">` +
+        `<span class="rules-row-name">${medalFor(e.rank)} ${escapeHtml(e.name)}</span>` +
+        `<span class="rules-row-value">${e.total}</span>` +
+      `</div>`).join('');
+    $('leaderboardModal').classList.remove('open');
+    $('saveModal').classList.add('open');
+    input.focus();
+  }
+
+  function closeSaveModal() { $('saveModal').classList.remove('open'); }
+
+  function archiveCurrentGame(label) {
+    const dict = t();
+    if (!hasAnythingToSave()) { showToast(dict.emptyGameAlert); return; }
 
     pushUndoSnapshot();
     const ranked = standingsWithWinner();
@@ -565,6 +594,7 @@ export function mountRunningTotal(container, def) {
     history.unshift({
       id: 'g_' + Date.now(),
       game: def.id,
+      label: label || '',
       dateISO: new Date().toISOString(),
       date: new Date().toLocaleDateString(state.lang === 'es' ? 'es-ES' : 'en-US', {
         day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
@@ -583,6 +613,7 @@ export function mountRunningTotal(container, def) {
     state.finalRoundLeft = null;
     saveState();
     $('leaderboardModal').classList.remove('open');
+    closeSaveModal();
     render();
     showToast(dict.toastSaved);
   }
@@ -617,6 +648,7 @@ export function mountRunningTotal(container, def) {
         card.innerHTML =
           `<div class="history-card-top"><span>${escapeHtml(g.date)}</span>` +
           `<span>${rows.length} ${dict.playersShort}</span></div>` +
+          (g.label ? `<div class="history-label">${escapeHtml(g.label)}</div>` : '') +
           `<div class="history-winner">🏆 ${names} — ${score} pts</div>` +
           `<div class="history-players">${chips}</div>`;
         list.appendChild(card);
@@ -645,8 +677,15 @@ export function mountRunningTotal(container, def) {
 
   $('btnHome').addEventListener('click', () => { location.hash = '#/'; });
   $('btnDockUndo').addEventListener('click', performUndo);
-  $('btnFinishGame').addEventListener('click', archiveCurrentGame);
-  $('btnModalFinishGame').addEventListener('click', archiveCurrentGame);
+  $('btnFinishGame').addEventListener('click', openSaveModal);
+  $('btnModalFinishGame').addEventListener('click', openSaveModal);
+  $('btnCloseSave').addEventListener('click', closeSaveModal);
+  $('saveModal').addEventListener('click', e => {
+    if (e.target.id === 'saveModal') closeSaveModal();
+  });
+  $('btnConfirmSave').addEventListener('click', () => {
+    archiveCurrentGame($('matchNameInput').value.trim().slice(0, 40));
+  });
 
   $('btnHistory').addEventListener('click', openHistoryModal);
   $('btnCloseHistory').addEventListener('click', () => $('historyModal').classList.remove('open'));

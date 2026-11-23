@@ -179,3 +179,46 @@ test('opening the rules mid-game changes nothing', () =>
     assert.equal(await app.total(), before);
     assert.equal(await app.cell('Yahtzee'), '50');
   }));
+
+// ---------- Naming a saved match ----------
+
+test('a saved match can be given a name, and it shows in the history', () =>
+  withApp('truco', async app => {
+    await app.addPreset(5);
+    await app.selectSide(1);
+    await app.addPreset(3);
+    await app.saveGame('Domingo con Lucas');
+    const h = await app.history();
+    assert.match(h[0], /Domingo con Lucas/);
+    assert.match(h[0], /🏆 Nosotros — 5 pts/, 'the result is still there');
+  }));
+
+test('the name is optional — saving without one still works', () =>
+  withApp('yahtzee', async app => {
+    await app.fixed('Yahtzee');
+    await app.saveGame();
+    const h = await app.history();
+    assert.equal(h.length, 1);
+    assert.match(h[0], /🏆 Player 1 — 50 pts/);
+  }));
+
+test('the save sheet shows what is about to be filed', () =>
+  withApp('yahtzee', async app => {
+    await app.fixed('Yahtzee');
+    await app.selectPlayer(1);
+    await app.fixed('Full House');
+    await app.openSave();
+    assert.equal(await app.saveSheetOpen(), true);
+    const summary = await app.saveSummary();
+    assert.deepEqual(summary, ['🥇 Player 1 50', '🥈 Player 2 25']);
+  }));
+
+test('closing the save sheet files nothing', () =>
+  withApp('yahtzee', async app => {
+    await app.fixed('Yahtzee');
+    await app.openSave();
+    await app.page.click('#btnCloseSave');
+    assert.equal(await app.saveSheetOpen(), false);
+    assert.equal((await app.history()).length, 0, 'nothing saved');
+    assert.equal(await app.total(), 50, 'and the game is untouched');
+  }));

@@ -18,7 +18,7 @@
 // bad signal, you get the last one that loaded. Neither case can pin
 // you to an old build forever.
 
-const CACHE = 'ryp-v0.9.2';
+const CACHE = 'ryp-v0.10.0';
 const NETWORK_TIMEOUT_MS = 3000;
 
 const ASSETS = [

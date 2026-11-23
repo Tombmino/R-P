@@ -58,6 +58,28 @@ export async function triggerInstallPrompt() {
   deferredInstallPrompt = null;
 }
 
+// --- Host badge ---------------------------------------------------------
+// Netlify pins a "Powered by Netlify" badge to the bottom-right corner of
+// free-plan sites. It is injected after load, floats above everything, and
+// landed squarely on the dock's Undo and Standings buttons. It is their
+// attribution for free hosting, so the app makes room for it rather than
+// hiding it. Only when it is actually present: on localhost, or if the
+// project later moves to a plan where the badge is switched off, the dock
+// keeps its full height.
+function watchHostBadge() {
+  const check = () => {
+    const present = Boolean(document.getElementById('nl-badge-frame'));
+    document.body.classList.toggle('has-host-badge', present);
+    return present;
+  };
+  if (check()) return;
+  const observer = new MutationObserver(() => { if (check()) observer.disconnect(); });
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+  // It either arrives in the first few seconds or it is not coming.
+  setTimeout(() => observer.disconnect(), 10000);
+}
+watchHostBadge();
+
 // --- Router -----------------------------------------------------------
 // Each entry renders fully into the app container. Switching replaces
 // the content, so games own their own DOM, listeners and modals without

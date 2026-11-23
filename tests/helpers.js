@@ -182,7 +182,21 @@ function makeApi(page, extra) {
       return (cls.match(/pc-([a-z]+)/) || [])[1] || null;
     },
     async undo() { await page.click('#btnDockUndo'); },
-    async saveGame() { await page.click('#btnFinishGame'); },
+    async saveGame(name) {
+      await page.click('#btnFinishGame');
+      await page.waitForSelector('#saveModal.open');
+      if (name) await page.fill('#matchNameInput', name);
+      await page.click('#btnConfirmSave');
+    },
+    // Opens the save sheet without committing, to inspect it.
+    async openSave() { await page.click('#btnFinishGame'); },
+    async saveSheetOpen() { return page.isVisible('#saveModal.open'); },
+    async saveSummary() {
+      // Name and score are separate spans with no whitespace between
+      // them, so join explicitly rather than reading textContent.
+      return page.$$eval('#saveSummary .rules-row',
+        rows => rows.map(r => [...r.children].map(c => c.textContent.trim()).join(' ')));
+    },
     async history() {
       await page.click('#btnHistory');
       const cards = await page.locator('#historyList .history-card').allTextContents();

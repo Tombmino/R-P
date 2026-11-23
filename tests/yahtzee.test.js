@@ -172,8 +172,9 @@ test('save game: adds to history and clears the board', () => withApp(async app 
 }));
 
 test('save game with no scores is refused', () => withApp(async app => {
-  await app.saveGame();
-  assert.equal(app.dialogs.at(-1).message, 'No scores entered yet to save.');
+  await app.openSave();
+  assert.equal(await app.saveSheetOpen(), false, 'the sheet does not even open');
+  assert.equal(await app.toast(), 'No scores entered yet to save.');
   assert.equal((await app.history()).length, 0);
 }));
 
