@@ -8,9 +8,29 @@ import { renderFarkle } from './games/farkle.js';
 import { renderTruco } from './games/truco.js';
 
 // --- Service worker ----------------------------------------------------
+// Registering is only half of it. A browser decides for itself when to
+// re-check sw.js, which can leave a device running a build that is days
+// old — exactly what happened here, twice. So: force an update check on
+// every load, and when a new worker actually takes over, reload once so
+// the person sees the new version immediately instead of on some later
+// visit.
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  // Whether a worker was already in charge before this page loaded. On
+  // a first-ever visit the new worker claims the page as a matter of
+  // course, and reloading for that would be a pointless flash.
+  const hadController = Boolean(navigator.serviceWorker.controller);
+  let reloading = false;
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloading) return;
+    reloading = true;
+    location.reload();
+  });
+
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
+    navigator.serviceWorker.register('./sw.js')
+      .then((reg) => reg.update().catch(() => {}))
+      .catch(() => {});
   });
 }
 
